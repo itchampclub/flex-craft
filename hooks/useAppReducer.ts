@@ -116,16 +116,18 @@ const appReducer = (state: AppState, action: Action): AppState => {
         return state;
       }
       
-      // Construct the component. Cast `defaultPropertiesFactory()` result to `any`
-      // during spread to avoid TS inferring a wide object type with union properties.
-      // The `type` property from `componentDefinition.type` (a specific literal at runtime)
-      // combined with the specific properties from the factory, and the final
-      // assertion `as AnyFlexComponent` ensures `componentToAdd` is correctly typed.
+      // Construct the component.
+      // The `componentDefinition.type` will be a union of string literals (ComponentType).
+      // The `componentDefinition.defaultPropertiesFactory()` returns a union of Omit<T, 'id' | 'type'>.
+      // Spreading this union with `as any` is a common practice when the discriminant (`type`)
+      // ensures the properties align.
+      // The final `as any as AnyFlexComponent` tells TypeScript to trust that this construction
+      // results in a valid member of the AnyFlexComponent discriminated union.
       const componentToAdd = {
         id: generateId(),
         type: componentDefinition.type,
         ...(componentDefinition.defaultPropertiesFactory() as any),
-      } as AnyFlexComponent;
+      } as any as AnyFlexComponent; 
 
       const ensureIdsRecursive = (comp: any): any => { 
         if (!comp) return comp;
