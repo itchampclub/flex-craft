@@ -45,7 +45,7 @@ const App: React.FC = () => {
           <aside className="w-[480px] flex flex-col bg-white dark:bg-slate-950 shadow-lg border-l border-gray-300 dark:border-slate-700 transition-colors duration-300">
             {/* Panel 3: Live Preview */}
             <div className="flex-1 p-1 md:p-2 overflow-y-auto">
-              {state.currentDesign && <PreviewPanel flexMessage={state.currentDesign} />}
+              {state.currentDesign && <PreviewPanel flexMessage={state.currentDesign} dispatch={dispatch} />}
             </div>
             
             {/* Divider */}

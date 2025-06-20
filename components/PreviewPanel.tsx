@@ -4,8 +4,9 @@ import {
     FlexContainer, FlexComponent, FlexBox, FlexText, FlexImage, FlexIcon, 
     FlexButton, FlexSeparator, FlexSpacer, FlexBubble, FlexCarousel, 
     FlexAlign, FlexGravity, FlexSpacing, FlexMargin, PreviewableFlexComponent, FlexImageSize, FlexImageAspectRatio, FlexImageAspectMode,
-    FlexURIAction // Added import
+    FlexURIAction
 } from '../types';
+import { Action } from '../hooks/useAppReducer'; // Added Action import
 
 // Helper to map Flex properties to Tailwind classes
 const getLayoutClasses = (layout: FlexBox['layout']): string => {
@@ -22,7 +23,6 @@ const getAlignmentClasses = (align?: FlexAlign, gravity?: FlexGravity, layout?: 
     if (gravity === 'top') classes += ' items-start';
     if (gravity === 'bottom') classes += ' items-end';
     if (gravity === 'center') classes += ' items-center';
-    // Text align is for cross axis for text itself, not box content
   } else { // Main axis is column
     if (align === 'start') classes += ' items-start';
     if (align === 'end') classes += ' items-end';
@@ -33,7 +33,7 @@ const getAlignmentClasses = (align?: FlexAlign, gravity?: FlexGravity, layout?: 
 
 const getJustifyContentClass = (justifyContent?: FlexBox['justifyContent']): string => {
     if (!justifyContent) return '';
-    const map: Record<FlexBox['justifyContent'], string> = {
+    const map: Record<NonNullable<FlexBox['justifyContent']>, string> = {
         'flex-start': 'justify-start',
         'flex-end': 'justify-end',
         'center': 'justify-center',
@@ -46,7 +46,7 @@ const getJustifyContentClass = (justifyContent?: FlexBox['justifyContent']): str
 
 const getAlignItemsClass = (alignItems?: FlexBox['alignItems']): string => {
     if (!alignItems) return '';
-    const map: Record<FlexBox['alignItems'], string> = {
+    const map: Record<NonNullable<FlexBox['alignItems']>, string> = {
         'flex-start': 'items-start',
         'flex-end': 'items-end',
         'center': 'items-center',
@@ -63,17 +63,16 @@ const getSpacingClass = (spacing?: FlexSpacing, layout?: FlexBox['layout']): str
     none: '0px', xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px', xxl: '24px'
   };
   const size = SIZES[spacing] || SIZES['md'];
-  // Tailwind JIT can handle arbitrary values in square brackets for gap (instead of space-x/y)
   return layout === 'horizontal' ? `gap-x-[${size}]` : `gap-y-[${size}]`;
 };
 
 const getMarginClass = (margin?: FlexMargin): string => {
   if (!margin || margin === 'none') return '';
-  const SIZES: Record<FlexSpacing, string> = { // Assuming FlexSpacing values for common margins
+  const SIZES: Record<FlexSpacing, string> = { 
     none: '0px', xs: 'm-1', sm: 'm-2', md: 'm-3', lg: 'm-4', xl: 'm-5', xxl: 'm-6'
   };
   if (typeof margin === 'string' && SIZES[margin as FlexSpacing]) return SIZES[margin as FlexSpacing];
-  if (typeof margin === 'string') return `m-[${margin}]`; // Custom pixel value
+  if (typeof margin === 'string') return `m-[${margin}]`; 
   return SIZES['md'];
 };
 
@@ -82,8 +81,8 @@ const getPaddingStyles = (component: FlexBox): React.CSSProperties => {
     if (component.paddingAll) styles.padding = component.paddingAll;
     if (component.paddingTop) styles.paddingTop = component.paddingTop;
     if (component.paddingBottom) styles.paddingBottom = component.paddingBottom;
-    if (component.paddingStart) styles.paddingLeft = component.paddingStart; // Assuming LTR
-    if (component.paddingEnd) styles.paddingRight = component.paddingEnd; // Assuming LTR
+    if (component.paddingStart) styles.paddingLeft = component.paddingStart; 
+    if (component.paddingEnd) styles.paddingRight = component.paddingEnd; 
     return styles;
 };
 
@@ -91,14 +90,14 @@ const getFlexSizeClass = (size?: FlexImageSize): string => {
     const sizeMap: Partial<Record<FlexImageSize, string>> = {
         xxs: 'text-[10px] leading-[14px]', xs: 'text-xs leading-tight', sm: 'text-sm leading-normal', md: 'text-base leading-relaxed',
         lg: 'text-lg leading-relaxed', xl: 'text-xl leading-snug', xxl: 'text-2xl leading-snug',
-        full: 'w-full', // For images mostly
+        full: 'w-full', 
     };
     if (size && sizeMap[size]) return sizeMap[size]!;
     if (size && (size.endsWith('px') || size.endsWith('%'))) {
-      if (['full', 'auto'].includes(size)) return `w-${size}`; // For image width like w-full
-      return `text-[${size}]`; // For text
+      if (['full', 'auto'].includes(size)) return `w-${size}`; 
+      return `text-[${size}]`; 
     }
-    return sizeMap['md']!; // Default size
+    return sizeMap['md']!; 
 };
 
 const getImageSizeStyles = (size?: FlexImageSize, aspectRatio?: FlexImageAspectRatio, aspectMode?: FlexImageAspectMode): React.CSSProperties => {
@@ -108,14 +107,14 @@ const getImageSizeStyles = (size?: FlexImageSize, aspectRatio?: FlexImageAspectR
     } else if (aspectMode === 'cover') {
       styles.objectFit = 'cover';
     } else {
-      styles.objectFit = 'cover'; // Default
+      styles.objectFit = 'cover'; 
     }
 
     if (size) {
         if (size === 'full') { styles.width = '100%'; }
         else if (size.endsWith('%')) { styles.width = size; }
-        else if (size.endsWith('px')) { styles.width = size; styles.height = size; } // Assuming square for pixel based icon like sizes if no aspect ratio
-        else { // xxs, xs, sm, md, lg, xl, xxl
+        else if (size.endsWith('px')) { styles.width = size; styles.height = size; } 
+        else { 
             const SIZES_IMG: Record<string, string> = { xxs: '20px', xs: '24px', sm: '32px', md: '48px', lg: '64px', xl: '96px', xxl: '128px'};
             styles.width = SIZES_IMG[size] || SIZES_IMG.md;
             styles.height = SIZES_IMG[size] || SIZES_IMG.md;
@@ -123,12 +122,12 @@ const getImageSizeStyles = (size?: FlexImageSize, aspectRatio?: FlexImageAspectR
     }
     if (aspectRatio) {
         styles.aspectRatio = aspectRatio.replace(':', ' / ');
-        if(styles.width && !styles.height) styles.height = 'auto'; // Let aspect ratio dictate height if width is set
-        if(!styles.width && styles.height) styles.width = 'auto'; // Let aspect ratio dictate width if height is set
+        if(styles.width && !styles.height) styles.height = 'auto'; 
+        if(!styles.width && styles.height) styles.width = 'auto'; 
     }
-    if (!styles.width && !styles.height && !aspectRatio) { // Fallback if nothing specific
-        styles.width = '100%'; // Default to full width for hero-like images
-        styles.aspectRatio = '1.91 / 1'; // Common fallback aspect ratio
+    if (!styles.width && !styles.height && !aspectRatio) { 
+        styles.width = '100%'; 
+        styles.aspectRatio = '1.91 / 1'; 
     }
 
     return styles;
@@ -162,18 +161,27 @@ const getBackgroundStyles = (component: FlexBox): React.CSSProperties => {
     return styles;
 };
 
+interface ComponentPreviewProps {
+  component: PreviewableFlexComponent;
+  dispatch: React.Dispatch<Action>;
+}
 
-const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ component }) => {
+const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch }) => {
   let content;
   const commonStyles: React.CSSProperties = {};
+  let clickableClass = 'cursor-pointer hover:outline hover:outline-2 hover:outline-offset-2 hover:outline-blue-400 dark:hover:outline-blue-500 transition-all duration-100';
 
-  // Check for positionable properties only if they exist on the component type
+  const handleSelectComponent = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    dispatch({ type: 'SELECT_COMPONENT', payload: id });
+  };
+  
   if ('position' in component && component.position === 'absolute') {
       commonStyles.position = 'absolute';
       if('offsetTop' in component && component.offsetTop) commonStyles.top = component.offsetTop;
       if('offsetBottom' in component && component.offsetBottom) commonStyles.bottom = component.offsetBottom;
-      if('offsetStart' in component && component.offsetStart) commonStyles.left = component.offsetStart; // Assuming LTR
-      if('offsetEnd' in component && component.offsetEnd) commonStyles.right = component.offsetEnd; // Assuming LTR
+      if('offsetStart' in component && component.offsetStart) commonStyles.left = component.offsetStart; 
+      if('offsetEnd' in component && component.offsetEnd) commonStyles.right = component.offsetEnd; 
   }
   if ('flex' in component && component.flex !== undefined) commonStyles.flexGrow = component.flex;
   if ('margin' in component && component.margin) {
@@ -197,11 +205,11 @@ const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ c
 
       content = (
         <div 
-            className={`${getLayoutClasses(box.layout)} ${getAlignmentClasses(undefined, undefined, box.layout)} ${getJustifyContentClass(box.justifyContent)} ${getAlignItemsClass(box.alignItems)} ${getSpacingClass(box.spacing, box.layout)} w-full`}
+            className={`${getLayoutClasses(box.layout)} ${getAlignmentClasses(undefined, undefined, box.layout)} ${getJustifyContentClass(box.justifyContent)} ${getAlignItemsClass(box.alignItems)} ${getSpacingClass(box.spacing, box.layout)} w-full ${clickableClass}`}
             style={boxStyles}
-            onClick={box.action && box.action.type === 'uri' ? () => window.open((box.action as FlexURIAction).uri, '_blank') : undefined}
+            onClick={(e) => handleSelectComponent(e, box.id)}
         >
-          {box.contents.map(child => <ComponentPreview key={child.id} component={child} />)}
+          {box.contents.map(child => <ComponentPreview key={child.id} component={child} dispatch={dispatch} />)}
         </div>
       );
       break;
@@ -231,9 +239,9 @@ const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ c
 
       content = (
         <p 
-          className={`${textBaseClasses} ${textAlignClass} ${text.wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap truncate'}`} 
+          className={`${textBaseClasses} ${textAlignClass} ${text.wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap truncate'} ${clickableClass}`} 
           style={textStyles}
-          onClick={text.action && text.action.type === 'uri' ? () => window.open((text.action as FlexURIAction).uri, '_blank') : undefined}
+          onClick={(e) => handleSelectComponent(e, text.id)}
         >
           {text.contents && text.contents.length > 0 ? text.contents.map((span, idx) => {
             const spanStyles: React.CSSProperties = {};
@@ -259,57 +267,57 @@ const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ c
             src={image.url} 
             alt="Flex message image" 
             style={imageStyles}
-            className="block" // images are inline by default
-            onClick={image.action && image.action.type === 'uri' ? () => window.open((image.action as FlexURIAction).uri, '_blank') : undefined}
+            className={`block ${clickableClass}`}
+            onClick={(e) => handleSelectComponent(e, image.id)}
         />);
       break;
     case 'icon':
-      const iconComp = component as FlexIcon; // Renamed to avoid conflict with 'icon' variable name
-      const iconBaseStyles = getImageSizeStyles(iconComp.size, iconComp.aspectRatio, undefined); // aspectMode not on FlexIcon type
+      const iconComp = component as FlexIcon; 
+      const iconBaseStyles = getImageSizeStyles(iconComp.size, iconComp.aspectRatio, undefined); 
       const iconStyles = { 
         ...commonStyles, 
         ...iconBaseStyles,
-        objectFit: 'contain' as React.CSSProperties['objectFit'] // Icons should typically contain
+        objectFit: 'contain' as React.CSSProperties['objectFit'] 
       };
-      content = <img src={iconComp.url} alt="Flex message icon" style={iconStyles} className="block" />;
+      content = <img src={iconComp.url} alt="Flex message icon" style={iconStyles} className={`block ${clickableClass}`} onClick={(e) => handleSelectComponent(e, iconComp.id)} />;
       break;
     case 'button':
       const button = component as FlexButton;
-      let buttonClasses = 'px-4 rounded font-medium transition-colors duration-150 w-full text-center '; // text-center for button label
+      let buttonClasses = `px-4 rounded font-medium transition-colors duration-150 w-full text-center ${clickableClass}`; 
       buttonClasses += button.height === 'sm' ? 'py-2 text-sm' : 'py-2.5 text-base';
       
-      const buttonAction = button.action;
       const buttonStyles: React.CSSProperties = {...commonStyles};
 
       if (button.style === 'primary') {
-        buttonStyles.backgroundColor = button.color || '#06C755'; // Default LINE Green
+        buttonStyles.backgroundColor = button.color || '#06C755'; 
         buttonStyles.color = 'white'; 
       } else if (button.style === 'secondary') {
         buttonStyles.borderColor = button.color || '#06C755';
         buttonStyles.color = button.color || '#06C755';
         buttonStyles.borderWidth = '1px'; 
         buttonStyles.borderStyle = 'solid';
-      } else { // link
-         buttonStyles.color = button.color || '#007AFF'; // Default link blue
+      } else { 
+         buttonStyles.color = button.color || '#007AFF'; 
       }
 
       content = (
         <button 
             className={buttonClasses} 
             style={buttonStyles}
-            onClick={() => buttonAction && (buttonAction.type === 'uri') && window.open((buttonAction as FlexURIAction).uri, '_blank')}
+            onClick={(e) => handleSelectComponent(e, button.id)}
         >
-          {buttonAction.label || "Button"}
+          {button.action.label || "Button"}
         </button>
       );
       break;
     case 'separator':
       const separator = component as FlexSeparator;
-      const separatorStyles: React.CSSProperties = {...commonStyles}; // commonStyles might contain margin
+      const separatorStyles: React.CSSProperties = {...commonStyles}; 
       separatorStyles.height = '1px';
       separatorStyles.backgroundColor = separator.color || '#E0E0E0';
       separatorStyles.width = '100%';
-      content = <div style={separatorStyles}></div>;
+      // Separators are usually not interactive for selection in a dense UI, but can be added if needed.
+      content = <div style={separatorStyles} onClick={(e) => handleSelectComponent(e, separator.id)} className={clickableClass}></div>;
       break;
     case 'spacer':
       const spacer = component as FlexSpacer;
@@ -317,16 +325,15 @@ const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ c
         none: '0px', xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px', xxl: '24px'
       };
       const spacerSize = SIZES_SPACER[spacer.size || 'md'];
-      // commonStyles might contain margin. Spacer itself is about creating space, so height/width is key.
+      // Spacers are typically not selectable.
       content = <div style={{ ...commonStyles, height: spacerSize, width: spacerSize, flexShrink: 0 }}></div>;
+      clickableClass = ''; // Spacers not clickable for selection
       break;
     case 'bubble':
         const bubble = component as FlexBubble;
         const bubbleStyles: React.CSSProperties = {...commonStyles};
-        // Bubble specific styles (like overall background from styles prop) could be applied here if needed.
-        // For simplicity, background from styles.header etc. are applied to respective divs.
         
-        let bubbleWidthClass = 'w-full max-w-[300px]'; // Default mega size approx
+        let bubbleWidthClass = 'w-full max-w-[300px]'; 
         if (bubble.size === 'nano') bubbleWidthClass = 'w-full max-w-[120px]';
         else if (bubble.size === 'micro') bubbleWidthClass = 'w-full max-w-[160px]';
         else if (bubble.size === 'kilo') bubbleWidthClass = 'w-full max-w-[240px]';
@@ -334,51 +341,56 @@ const ComponentPreview: React.FC<{ component: PreviewableFlexComponent }> = ({ c
 
         content = (
             <div 
-              className={`bg-white dark:bg-slate-800 shadow-lg rounded-lg overflow-hidden ${bubbleWidthClass} flex-shrink-0`} 
+              className={`bg-white dark:bg-slate-800 shadow-lg rounded-lg overflow-hidden ${bubbleWidthClass} flex-shrink-0 ${clickableClass}`} 
               style={bubbleStyles}
-              onClick={bubble.action && bubble.action.type === 'uri' ? () => window.open((bubble.action as FlexURIAction).uri, '_blank') : undefined}
+              onClick={(e) => handleSelectComponent(e, bubble.id)}
             >
-                {bubble.header && <div style={{backgroundColor: bubble.styles?.header?.backgroundColor}}><ComponentPreview component={bubble.header} /></div>}
-                {bubble.hero && <div style={{backgroundColor: bubble.styles?.hero?.backgroundColor}}><ComponentPreview component={bubble.hero} /></div>}
-                {bubble.body && <div style={{backgroundColor: bubble.styles?.body?.backgroundColor}}><ComponentPreview component={bubble.body} /></div>}
-                {bubble.footer && <div style={{backgroundColor: bubble.styles?.footer?.backgroundColor}}><ComponentPreview component={bubble.footer} /></div>}
+                {bubble.header && <div style={{backgroundColor: bubble.styles?.header?.backgroundColor}}><ComponentPreview component={bubble.header} dispatch={dispatch} /></div>}
+                {bubble.hero && <div style={{backgroundColor: bubble.styles?.hero?.backgroundColor}}><ComponentPreview component={bubble.hero} dispatch={dispatch} /></div>}
+                {bubble.body && <div style={{backgroundColor: bubble.styles?.body?.backgroundColor}}><ComponentPreview component={bubble.body} dispatch={dispatch} /></div>}
+                {bubble.footer && <div style={{backgroundColor: bubble.styles?.footer?.backgroundColor}}><ComponentPreview component={bubble.footer} dispatch={dispatch} /></div>}
             </div>
         );
         break;
      case 'carousel':
         const carousel = component as FlexCarousel;
+        // Carousel itself is not directly selectable, selection happens on child bubbles
+        clickableClass = ''; 
         content = (
-            <div className="flex flex-row overflow-x-auto space-x-2 p-2 w-full snap-x snap-mandatory">
+            <div className={`flex flex-row overflow-x-auto space-x-2 p-2 w-full snap-x snap-mandatory ${clickableClass}`} onClick={(e) => handleSelectComponent(e, carousel.id)}>
                 {carousel.contents.map(b => (
                     <div key={b.id} className="snap-center flex-shrink-0">
-                        <ComponentPreview component={b} />
+                        <ComponentPreview component={b} dispatch={dispatch} />
                     </div>
                 ))}
             </div>
         );
         break;
     default:
-      // This should ideally not happen with PreviewableFlexComponent
       const unknownComponent = component as any;
       content = <div className="text-red-500">Unsupported component type: {unknownComponent.type}</div>;
+      clickableClass = '';
   }
   
   let wrapperClasses = '';
   if ('margin' in component && component.margin && typeof component.margin === 'string' && ['none', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'].includes(component.margin)) {
     wrapperClasses += ` ${getMarginClass(component.margin as FlexSpacing)}`;
   }
-  // If commonStyles contains margin (from custom string value), it will be applied via style prop.
-  // Otherwise, Tailwind margin class is used.
+  
+  const finalStyles = Object.keys(commonStyles).length > 0 && !commonStyles.margin 
+                      ? commonStyles 
+                      : (commonStyles.margin && wrapperClasses.includes("m-") ? {...commonStyles, margin:undefined} : commonStyles);
 
-  return <div className={wrapperClasses} style={Object.keys(commonStyles).length > 0 && !commonStyles.margin ? commonStyles : (commonStyles.margin && wrapperClasses.includes("m-") ? {...commonStyles, margin:undefined} : commonStyles) }>{content}</div>;
+  return <div className={`${wrapperClasses} ${clickableClass && component.type !== 'spacer' ? clickableClass : ''}`} style={finalStyles}>{content}</div>;
 };
 
 
 interface PreviewPanelProps {
   flexMessage: FlexContainer;
+  dispatch: React.Dispatch<Action>; // Added dispatch
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ flexMessage }) => {
+const PreviewPanel: React.FC<PreviewPanelProps> = ({ flexMessage, dispatch }) => {
   return (
     <div className="h-full bg-line-lightGray dark:bg-line-charcoal p-2 md:p-4 flex flex-col items-center justify-start overflow-y-auto">
       <div className="w-[320px] bg-gray-800 rounded-[24px] p-2 shadow-2xl flex-shrink-0"> {/* iPhone like frame */}
@@ -387,9 +399,8 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ flexMessage }) => {
           <div className="absolute top-1/2 left-7 transform -translate-y-1/2 bg-gray-700 h-1 w-8 rounded-sm"></div> {/* Speaker */}
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-[16px] overflow-hidden min-h-[500px] flex"> {/* Screen */}
-          {/* Main content area for Flex Message */}
           <div className="w-full">
-            <ComponentPreview component={flexMessage} />
+            <ComponentPreview component={flexMessage} dispatch={dispatch} />
           </div>
         </div>
       </div>
