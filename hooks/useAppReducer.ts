@@ -1,6 +1,6 @@
 
 import { useReducer, useCallback } from 'react';
-import { AppState as AppStateDefinition, FlexContainer as FlexContainerDefinition, FlexComponent, FlexBox, FlexBubble, FlexCarousel, Design as DesignDefinition, AnySpecificComponentDefinition, AiMode as AiModeDefinition, AnyFlexComponent, FlexImage, FlexText, LineApiFlexContainer, Design } from '../types';
+import { AppState as AppStateDefinition, FlexContainer as FlexContainerDefinition, FlexComponent, FlexBox, FlexBubble, FlexCarousel, Design as DesignDefinition, AnySpecificComponentDefinition, AnyFlexComponent, FlexImage, FlexText, LineApiFlexContainer, Design } from '../types'; // AiMode import removed, will be taken from types.ts directly
 import { generateId } from '../utils/generateId';
 import { COMPONENT_DEFINITIONS, INITIAL_EMPTY_BUBBLE, INITIAL_EMPTY_CAROUSEL, TEMPLATES } from '../constants';
 import { addIdsToFlexMessage } from '../utils/flexTransform';
@@ -8,11 +8,7 @@ import { addIdsToFlexMessage } from '../utils/flexTransform';
 // Exporting types for use in other modules
 export type AppState = AppStateDefinition;
 export type FlexContainer = FlexContainerDefinition;
-// export type Design = DesignDefinition; // Design is imported from types now
-export enum AiMode { // Re-exporting enum
-  Generate = AiModeDefinition.Generate,
-  Improve = AiModeDefinition.Improve,
-}
+// Design is imported from types.ts directly where needed.
 
 
 export type Action =
@@ -116,17 +112,12 @@ const appReducer = (state: AppState, action: Action): AppState => {
         return state;
       }
       
-      // Construct the component.
-      // componentDefinition is a discriminated union (AnySpecificComponentDefinition).
-      // TypeScript's control flow analysis correctly infers the specific type of
-      // componentDefinition.type and the return type of componentDefinition.defaultPropertiesFactory()
-      // based on the discriminant.
-      // The resulting object is one of the types in AnyFlexComponent.
-      const componentToAdd: AnyFlexComponent = {
+      const componentToAdd = {
         id: generateId(),
         type: componentDefinition.type,
         ...componentDefinition.defaultPropertiesFactory(),
-      };
+      } as AnyFlexComponent; // Explicit cast to AnyFlexComponent
+
 
       const ensureIdsRecursive = (comp: any): any => { 
         if (!comp) return comp;
@@ -156,26 +147,29 @@ const appReducer = (state: AppState, action: Action): AppState => {
 
       const updateFn = (parent: AnyFlexComponent): AnyFlexComponent | null => {
         if (asBubbleSection && parent.type === 'bubble') {
-            const typedComponentToAdd = componentToAdd as FlexBox | FlexImage; 
+            // Ensure componentToAdd is of the correct type for the section
             if (asBubbleSection === 'hero') {
-                if (typedComponentToAdd.type === 'box' || typedComponentToAdd.type === 'image') {
-                    return { ...parent, hero: typedComponentToAdd };
+                if (componentToAdd.type === 'box' || componentToAdd.type === 'image') {
+                    return { ...parent, hero: componentToAdd as FlexBox | FlexImage };
                 }
             } else if (componentToAdd.type === 'box') { 
                  const sectionKey = asBubbleSection as 'header' | 'body' | 'footer';
                  return { ...parent, [sectionKey]: componentToAdd as FlexBox };
             }
+            console.warn(`Cannot add component of type ${componentToAdd.type} to bubble section ${asBubbleSection}`);
+            return parent; // Return original parent if type mismatch
         } else if (parent.type === 'box') {
-          if (componentToAdd.type !== 'bubble' && componentToAdd.type !== 'carousel') {
+          if (componentToAdd.type !== 'bubble' && componentToAdd.type !== 'carousel') { // Ensure non-container components
             const parentDef = COMPONENT_DEFINITIONS.find(def => def.type === parent.type && def.name === 'Box'); 
-            if (parentDef?.acceptedChildTypes?.includes(componentToAdd.type as FlexComponent['type'])) {
+             if (parentDef?.acceptedChildTypes?.includes(componentToAdd.type as FlexComponent['type'])) { // Check if type is accepted
                  return { ...parent, contents: [...(parent.contents || []), componentToAdd as FlexComponent] };
             }
           }
-        } else if (parent.type === 'carousel' && componentToAdd.type === 'bubble') {
+        } else if (parent.type === 'carousel' && componentToAdd.type === 'bubble') { // Only bubbles in carousel
             return { ...parent, contents: [...(parent.contents || []), componentToAdd as FlexBubble]};
         }
-        return parent; 
+        console.warn(`Cannot add component type ${componentToAdd.type} to parent type ${parent.type}`);
+        return parent; // Return original parent if no suitable update logic found
       };
       
       if (!currentParentId) { 
@@ -196,12 +190,19 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'UPDATE_COMPONENT_PROPS': {
       if (!state.currentDesign) return state;
       const { componentId, props } = action.payload; 
-      const updatedDesign = findAndUpdateRecursive(state.currentDesign, componentId, (comp) => ({ ...comp, ...props }));
+      const updatedDesign = findAndUpdateRecursive(state.currentDesign, componentId, (comp) => {
+          // Prevent changing id or type via this action
+          const { id: _, type: __, ...safeProps } = props as any; // Cast props to any to allow destructuring id and type
+          return { ...comp, ...safeProps } as AnyFlexComponent; // Cast result to AnyFlexComponent
+      });
       return { ...state, currentDesign: updatedDesign as FlexContainer | null };
     }
 
     case 'DELETE_COMPONENT': {
       if (!state.currentDesign || action.payload === state.currentDesign.id) {
+         // Prevent deleting the root container itself, or if no design.
+         // Root deletion could be handled by setting currentDesign to null or an empty bubble.
+         // For now, disallow root deletion.
         return state; 
       }
       const componentId = action.payload;
@@ -222,9 +223,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
 
         let clonedFlexMessage: FlexContainer;
         try {
+            // Deep clone to ensure the saved design is a snapshot and not a reference
             clonedFlexMessage = JSON.parse(JSON.stringify(state.currentDesign));
         } catch (e) {
             console.error("Error cloning current design for saving:", e);
+            // alert("Error: Could not prepare design for saving. See console for details.");
             return state;
         }
         
@@ -238,6 +241,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
             flexMessage: clonedFlexMessage, 
             createdAt: existingDesignIndex > -1 ? currentDesigns[existingDesignIndex].createdAt : new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            // thumbnail: generateThumbnail(clonedFlexMessage) // Consider generating thumbnail here if needed
         };
 
         if (existingDesignIndex > -1) {
@@ -250,13 +254,15 @@ const appReducer = (state: AppState, action: Action): AppState => {
             localStorage.setItem('designs', JSON.stringify(newDesignsArray));
         } catch (e) {
             console.error("Failed to save designs to localStorage:", e);
-            return state; 
+            // alert("Error: Could not save designs to local storage. See console for details.");
+            return state; // Revert to previous state if saving to localStorage fails
         }
         return { ...state, designs: newDesignsArray };
     }
     case 'LOAD_DESIGN': {
         const designToLoad = state.designs.find(d => d.id === action.payload);
         if (designToLoad) {
+            // Deep clone to prevent mutations on the stored design
             const deepClonedDesign = JSON.parse(JSON.stringify(designToLoad.flexMessage)) as FlexContainer;
             return { ...state, currentDesign: deepClonedDesign, selectedComponentId: deepClonedDesign.id };
         }
@@ -278,10 +284,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
       if (originalDesign) {
         const duplicatedDesign: Design = {
           ...originalDesign, 
-          id: generateId(),
+          id: generateId(), // New ID for the duplicate
           name: `${originalDesign.name} (Copy)`,
+          // Deep clone and re-assign IDs to the flexMessage structure
           flexMessage: addIdsToFlexMessage(JSON.parse(JSON.stringify(originalDesign.flexMessage))),
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(), // Reset creation/update timestamps
           updatedAt: new Date().toISOString(),
         };
         const newDesigns = [...state.designs, duplicatedDesign];
@@ -303,19 +310,26 @@ const appReducer = (state: AppState, action: Action): AppState => {
       if (type === 'template' && templateName) {
           const template = TEMPLATES.find(t => t.name === templateName);
           if (template) {
-              const templateStructure = template.structure(); 
+              const templateStructure = template.structure(); // This is Omit<FlexBubble, 'id' | 'type'>
+              // addIdsToFlexMessage expects LineApiFlexContainer (no ids)
+              // The template structure is already LineApi compatible in terms of lacking ids.
+              // We need to construct a valid LineApiFlexContainer from it.
               newFlexContainer = addIdsToFlexMessage({type: 'bubble', ...templateStructure} as LineApiFlexContainer);
           } else {
+              console.warn(`Template "${templateName}" not found. Creating empty bubble.`);
               newFlexContainer = INITIAL_EMPTY_BUBBLE(); 
           }
       } else if (type === 'carousel') {
           newFlexContainer = INITIAL_EMPTY_CAROUSEL();
-      } else { 
+      } else { // Default to bubble
           newFlexContainer = INITIAL_EMPTY_BUBBLE();
       }
       return { ...state, currentDesign: newFlexContainer, selectedComponentId: newFlexContainer.id };
 
     default:
+      // This is a way to satisfy TypeScript's exhaustive check if action was 'never'
+      // const _exhaustiveCheck: never = action; 
+      // return _exhaustiveCheck;
       return state;
   }
 };
@@ -330,26 +344,29 @@ const appReducerInitializer = (initialAppState: AppState): AppState => {
     try {
       const parsedStoredDesigns = JSON.parse(storedDesigns);
       if (Array.isArray(parsedStoredDesigns)) {
+        // Filter out any potentially malformed design objects
         loadedDesigns = parsedStoredDesigns.map((d: any) => {
+          // Basic validation for a design object
           if (d && typeof d === 'object' && d.id && d.name && d.flexMessage && d.createdAt && d.updatedAt) {
             try {
+              // Ensure flexMessage is deeply cloned and valid; it should already have IDs from saving.
               const clonedFlexMessage = JSON.parse(JSON.stringify(d.flexMessage));
               return {
-                id: d.id,
-                name: d.name,
-                flexMessage: clonedFlexMessage, 
-                createdAt: d.createdAt,
-                updatedAt: d.updatedAt,
-                thumbnail: d.thumbnail 
+                id: d.id as string,
+                name: d.name as string,
+                flexMessage: clonedFlexMessage as FlexContainer, 
+                createdAt: d.createdAt as string,
+                updatedAt: d.updatedAt as string,
+                thumbnail: d.thumbnail as string | undefined
               } as Design;
             } catch (flexParseError) {
               console.error("Failed to parse flexMessage for a stored design:", d.id, flexParseError);
-              return null; 
+              return null; // Invalid flexMessage structure
             }
           }
           console.warn("Skipping malformed design object from localStorage:", d);
-          return null; 
-        }).filter(Boolean) as Design[]; 
+          return null; // Malformed design object
+        }).filter(Boolean) as Design[]; // Remove nulls
       } else {
         console.error("Stored designs from localStorage is not an array. Clearing.");
         localStorage.removeItem('designs');
@@ -366,34 +383,44 @@ const appReducerInitializer = (initialAppState: AppState): AppState => {
       const parsedDarkMode = JSON.parse(storedDarkMode);
       if (typeof parsedDarkMode === 'boolean') {
         isDark = parsedDarkMode;
-        if (isDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
       } else {
          console.warn("Stored darkMode value is not a boolean. Using default.");
       }
     } catch (e) {
       console.error("Failed to parse darkMode from localStorage. Using default.", e);
     }
+  }
+  
+  if (isDark) {
+    document.documentElement.classList.add('dark');
   } else {
-      if (isDark) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
+    document.documentElement.classList.remove('dark');
   }
 
+  // Determine the initial currentDesign: last updated design or a new empty bubble
+  let initialCurrentDesign: FlexContainer = INITIAL_EMPTY_BUBBLE();
+  let initialSelectedId: string | null = initialCurrentDesign.id;
+
+  if (loadedDesigns.length > 0) {
+    // Sort by updatedAt descending to get the most recent
+    const sortedDesigns = [...loadedDesigns].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    try {
+        initialCurrentDesign = JSON.parse(JSON.stringify(sortedDesigns[0].flexMessage));
+        initialSelectedId = initialCurrentDesign.id;
+    } catch (e) {
+        console.error("Failed to load last updated design, defaulting to empty bubble.", e);
+        initialCurrentDesign = INITIAL_EMPTY_BUBBLE();
+        initialSelectedId = initialCurrentDesign.id;
+    }
+  }
 
   return {
     ...initialAppState,
     designs: loadedDesigns,
     geminiApiKey: storedApiKey || null,
     isDarkMode: isDark,
-    currentDesign: loadedDesigns.length > 0 && loadedDesigns[0].flexMessage 
-                   ? JSON.parse(JSON.stringify(loadedDesigns.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0].flexMessage)) 
-                   : INITIAL_EMPTY_BUBBLE(), 
-    selectedComponentId: loadedDesigns.length > 0 && loadedDesigns[0].flexMessage
-                         ? loadedDesigns.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0].flexMessage.id
-                         : initialState.currentDesign?.id || null,
+    currentDesign: initialCurrentDesign, 
+    selectedComponentId: initialSelectedId,
   };
 };
 

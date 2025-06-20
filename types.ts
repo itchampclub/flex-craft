@@ -280,7 +280,7 @@ export interface ComponentDefinition<T extends AnyFlexComponent = AnyFlexCompone
   acceptedChildTypes?: ComponentType[]; // For containers like Box
 }
 
-export type AnySpecificComponentDefinition = 
+export type AnySpecificComponentDefinition =
   | ComponentDefinition<FlexBox>
   | ComponentDefinition<FlexText>
   | ComponentDefinition<FlexImage>
@@ -310,19 +310,37 @@ export interface AppState {
 
 // Utility type to represent Flex components as they would be sent to LINE API (without editor 'id')
 // This recursively strips 'id' and ensures 'contents' of Box, Bubble, Carousel are also transformed.
-export type LineApiFlexComponent<T extends FlexComponentBase> = 
-    Omit<T, 'id'> & 
-    (T extends FlexBox ? { contents?: LineApiFlexComponent<FlexComponent>[] } : {}) &
-    (T extends FlexBubble ? { 
-        header?: LineApiFlexComponent<FlexBox>, 
-        hero?: LineApiFlexComponent<FlexBox> | LineApiFlexComponent<FlexImage>, 
-        body?: LineApiFlexComponent<FlexBox>, 
-        footer?: LineApiFlexComponent<FlexBox> 
-    } : {}) &
-    (T extends FlexCarousel ? { contents: LineApiFlexComponent<FlexBubble>[] } : {});
 
-export type LineApiFlexContainer = LineApiFlexComponent<FlexBubble> | LineApiFlexComponent<FlexCarousel>;
+// Base transformation: Omit 'id'
+type BaseLineApiComponent<T extends FlexComponentBase> = Omit<T, 'id'>;
+
+// Specific transformations for components with nested Flex structures
+type LineApiFlexBoxContents = BaseLineApiComponent<FlexBox> & { contents?: LineApiFlexComponent<FlexComponent>[] };
+type LineApiFlexImageItself = BaseLineApiComponent<FlexImage>; // Image itself doesn't nest FlexComponents for this transform
+
+type LineApiFlexBubbleStructure = Omit<BaseLineApiComponent<FlexBubble>, 'header' | 'hero' | 'body' | 'footer'> & {
+  header?: LineApiFlexBoxContents;
+  hero?: LineApiFlexBoxContents | LineApiFlexImageItself;
+  body?: LineApiFlexBoxContents;
+  footer?: LineApiFlexBoxContents;
+};
+
+type LineApiFlexCarouselStructure = Omit<BaseLineApiComponent<FlexCarousel>, 'contents'> & {
+  contents: LineApiFlexBubbleStructure[];
+};
+
+// Main discriminated union for LineApiFlexComponent
+export type LineApiFlexComponent<T extends FlexComponentBase> =
+  T extends FlexBox ? LineApiFlexBoxContents :
+  T extends FlexBubble ? LineApiFlexBubbleStructure :
+  T extends FlexCarousel ? LineApiFlexCarouselStructure :
+  T extends FlexImage ? LineApiFlexImageItself : // Handle FlexImage explicitly
+  BaseLineApiComponent<T>; // For simple components (Text, Icon, Button, Separator, Spacer)
+
+// Ensure LineApiFlexContainer uses the correct transformed types
+export type LineApiFlexContainer = LineApiFlexBubbleStructure | LineApiFlexCarouselStructure;
 
 
 // For PreviewPanel, includes containers as they are also components
 export type PreviewableFlexComponent = FlexComponent | FlexBubble | FlexCarousel;
+    

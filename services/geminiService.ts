@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { AiMode, FlexContainer } from "../types";
+import { AiMode, FlexContainer, FlexBubble, FlexCarousel } from "../types"; // Added FlexBubble, FlexCarousel
 import { stripIds } from "../utils/flexTransform";
 
 // This service uses the API key provided by the user and stored in localStorage.
@@ -36,6 +36,7 @@ export const callGeminiApi = async (
   if (mode === AiMode.Generate) {
     fullPrompt = `You are an expert LINE Flex Message designer. Create a valid LINE Flex Message JSON (either a single Bubble or a Carousel) based on the following request: "${prompt}".
     The JSON output should strictly follow the LINE Flex Message specification. Ensure all component types and properties are valid.
+    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
     Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
     For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}.
     Use placeholder image URLs like 'https://picsum.photos/seed/example/600/400' if images are needed. Max 2 bubbles in a carousel for simplicity.
@@ -48,6 +49,7 @@ export const callGeminiApi = async (
     Apply the following improvements based on this request: "${prompt}".
     Return the fully modified LINE Flex Message JSON (either a single Bubble or a Carousel).
     The JSON output should strictly follow the LINE Flex Message specification. Ensure all component types and properties are valid.
+    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
     Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
     For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}.
     Make it visually appealing.`;
@@ -72,7 +74,31 @@ export const callGeminiApi = async (
     
     const cleanedJson = cleanJsonString(rawJsonText);
 
-    const parsedJson = JSON.parse(cleanedJson);
+    const parsedJson = JSON.parse(cleanedJson) as FlexContainer; // Assume it's a FlexContainer initially
+
+    // Sanitize: Remove 'alt' from hero if present
+    if (parsedJson.type === 'bubble') {
+      const bubble = parsedJson as FlexBubble;
+      if (bubble.hero && typeof bubble.hero === 'object' && bubble.hero !== null) {
+        if ('alt' in bubble.hero) {
+          console.warn("Gemini AI generated an 'alt' field in hero. Sanitizing it out.");
+          delete (bubble.hero as any).alt;
+        }
+      }
+    } else if (parsedJson.type === 'carousel') {
+      const carousel = parsedJson as FlexCarousel;
+      if (Array.isArray(carousel.contents)) {
+        carousel.contents.forEach((bubble: FlexBubble) => {
+          if (bubble && bubble.type === 'bubble' && bubble.hero && typeof bubble.hero === 'object' && bubble.hero !== null) {
+            if ('alt' in bubble.hero) {
+              console.warn("Gemini AI generated an 'alt' field in a carousel bubble's hero. Sanitizing it out.");
+              delete (bubble.hero as any).alt;
+            }
+          }
+        });
+      }
+    }
+
 
     // Basic validation for LINE Flex Message structure
     if (!parsedJson.type || (parsedJson.type !== 'bubble' && parsedJson.type !== 'carousel')) {
@@ -80,8 +106,7 @@ export const callGeminiApi = async (
       throw new Error("AI response is not a valid LINE Flex Message (Bubble or Carousel). Please try a more specific prompt.");
     }
     
-    // The parsedJson is LineApiFlexContainer (no IDs). We will add IDs in the reducer.
-    return parsedJson as FlexContainer; // Type assertion, IDs will be added later
+    return parsedJson;
 
   } catch (error: any) {
     console.error("Error calling Gemini API or parsing response:", error);
@@ -92,9 +117,8 @@ export const callGeminiApi = async (
     if (error.message && error.message.includes("API key not valid")) {
         errorMessage = "Invalid Gemini API Key. Please check your settings.";
     } else if (error instanceof SyntaxError) {
-        errorMessage = "AI returned an invalid JSON structure. Try refining your prompt for a clearer JSON output.";
+        errorMessage = "AI returned an invalid JSON structure. Try refining your prompt for a clearer JSON output. The raw AI output was: " + (error as any).rawResponseTextForDebug;
     }
-    // TODO: Handle specific Gemini API errors if possible by inspecting `error` properties
     throw new Error(errorMessage);
   }
 };

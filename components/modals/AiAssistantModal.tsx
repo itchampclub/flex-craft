@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import Modal from './Modal';
-import { AppState, Action, AiMode, FlexContainer } from '../../hooks/useAppReducer';
+import { AppState, Action, FlexContainer } from '../../hooks/useAppReducer'; // AiMode removed from here
+import { AiMode } from '../../types'; // AiMode imported directly from types.ts
 import { callGeminiApi } from '../../services/geminiService';
 import { stripIds, addIdsToFlexMessage } from '../../utils/flexTransform'; // To send clean JSON and add IDs back
 
