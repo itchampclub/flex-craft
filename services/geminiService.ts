@@ -34,13 +34,12 @@ export const callGeminiApi = async (
 
   let fullPrompt = "";
   if (mode === AiMode.Generate) {
-    fullPrompt = `You are an expert LINE Flex Message designer. Create a valid LINE Flex Message JSON (either a single Bubble or a Carousel) based on the following request: "${prompt}".
-    The JSON output should strictly follow the LINE Flex Message specification. Ensure all component types and properties are valid.
-    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
-    Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
-    For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}.
-    Use placeholder image URLs like 'https://picsum.photos/seed/example/600/400' if images are needed. Max 2 bubbles in a carousel for simplicity.
-    Make it visually appealing.`;
+  fullPrompt = `You are an expert LINE Flex Message designer, specializing in modern, visually appealing designs. Create a valid LINE Flex Message JSON (either a single Bubble or a Carousel) based on the following request: "${prompt}".
+  Design Principles (Inspired by Tailwind CSS/Material UI): Use a harmonious and modern color palette. Prefer muted tones with occasional vibrant accents. Think about primary, secondary, and accent colors, and their variations (e.g., light, dark). 
+  Utilize consistent spacing (e.g., multiples of 4px or 8px) for padding, margins, and component separation to create a clean, breathable layout. Employ a clear and legible font stack. Vary font sizes and weights judiciously for hierarchy (e.g., larger, bolder for titles; smaller, lighter for supporting text). 
+  Apply subtle box shadows for depth and emphasis, mimicking material design's elevation concept where appropriate (e.g., for cards or prominent buttons). Focus on a clean, uncluttered aesthetic with good contrast and readability. 
+  The JSON output should strictly follow the LINE Flex Message specification. Ensure all component types and properties are valid. The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately. Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences. 
+  For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}. Use placeholder image URLs like 'https://picsum.photos/seed/example/600/400' if images are needed. Max 2 bubbles in a carousel for simplicity.`;
   } else if (mode === AiMode.Improve && currentDesignJson) {
     fullPrompt = `You are an expert LINE Flex Message designer. Given the following LINE Flex Message JSON:
     \`\`\`json
