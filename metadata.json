@@ -1,0 +1,5 @@
+{
+  "name": "FlexCraft Studio",
+  "description": "A web application to visually design and build LINE Flex Messages with an AI assistant powered by Gemini. Users can drag and drop components, customize properties, preview live, and generate the final JSON for LINE API.",
+  "requestFramePermissions": []
+}
