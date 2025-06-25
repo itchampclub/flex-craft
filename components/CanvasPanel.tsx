@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FlexContainer, FlexComponent, FlexBox, FlexBubble, FlexCarousel, AnySpecificComponentDefinition, ComponentType, AnyFlexComponent, FlexText, FlexImage, FlexButton } from '../types';
+import { FlexContainer, FlexComponent, FlexBox, FlexBubble, FlexCarousel, AnySpecificComponentDefinition, ComponentType, AnyFlexComponent, FlexText, FlexImage, FlexButton, FlexVideo } from '../types';
 import { Action } from '../hooks/useAppReducer';
 import { useDrop } from 'react-dnd'; 
 
@@ -50,7 +51,7 @@ const CanvasDropZone: React.FC<CanvasDropZoneProps> = ({ parentId, acceptedTypes
 
 
   return (
-    <div ref={drop} className={`${baseClasses} ${dropStateClasses} ${emptyClasses} ${className}`}>
+    <div ref={drop as any} className={`${baseClasses} ${dropStateClasses} ${emptyClasses} ${className}`}>
       {children}
       {isEmpty && canDrop && <span className="text-sm">Drop here</span>}
       {isEmpty && !canDrop && isOver && <span className="text-sm text-red-500">Cannot drop here</span>}
@@ -93,7 +94,7 @@ const CanvasBlock: React.FC<CanvasBlockProps> = ({ component, selectedComponentI
           <CanvasDropZone
             parentId={component.id}
             parentType={component.type}
-            acceptedTypes={['box', 'text', 'image', 'button', 'separator', 'spacer', 'icon']}
+            acceptedTypes={['box', 'text', 'image', 'button', 'separator', 'icon', 'video']} // Added 'video'
             dispatch={dispatch}
             className={`flex ${component.layout === 'horizontal' ? 'flex-row space-x-2' : 'flex-col space-y-2'} p-2 border border-dashed border-gray-200 dark:border-slate-600 rounded min-h-[50px]`}
             isEmpty={component.contents.length === 0}
@@ -152,6 +153,14 @@ const CanvasBlock: React.FC<CanvasBlockProps> = ({ component, selectedComponentI
         return <img src={component.url || 'https://via.placeholder.com/100x50?text=Image'} alt="Canvas representation" className="max-h-20 max-w-full object-contain rounded" />;
       case 'button':
         return <span className="text-xs px-2 py-1 bg-primary-200 dark:bg-primary-700 text-primary-700 dark:text-primary-200 rounded">Button: {component.action.label || "No Label"}</span>;
+      case 'video':
+        return (
+            <div className="relative p-1 bg-gray-200 dark:bg-gray-600 rounded">
+                <img src={component.previewUrl || 'https://via.placeholder.com/100x50?text=Video+Preview'} alt="Video preview canvas" className="max-h-20 max-w-full object-contain rounded"/>
+                <i className="fas fa-play absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-lg bg-black bg-opacity-50 p-1 rounded-full"></i>
+                <p className="text-xs truncate dark:text-gray-300 mt-1">Video Component</p>
+            </div>
+        );
       default:
         return <p className="text-xs dark:text-gray-300">{component.type} component</p>;
     }

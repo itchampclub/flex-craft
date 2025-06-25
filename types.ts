@@ -190,12 +190,26 @@ export interface FlexSeparator extends FlexComponentBase {
   color?: string;
 }
 
-export interface FlexSpacer extends FlexComponentBase {
-  type: 'spacer';
-  size?: FlexSpacing;
+// FlexSpacer type definition removed
+
+export interface FlexVideo extends FlexComponentBase {
+  type: 'video';
+  url: string; 
+  previewUrl: string; 
+  altContent?: FlexBox; // According to LINE spec, this must be a Box.
+  aspectRatio?: FlexImageAspectRatio;
+  action?: FlexAction;
+  // Common properties like margin, position, etc. can be added if supported by LINE for video
+  margin?: FlexMargin;
+  position?: 'relative' | 'absolute';
+  offsetTop?: string;
+  offsetBottom?: string;
+  offsetStart?: string;
+  offsetEnd?: string;
 }
 
-export type FlexComponent = FlexBox | FlexText | FlexImage | FlexIcon | FlexButton | FlexSeparator | FlexSpacer;
+
+export type FlexComponent = FlexBox | FlexText | FlexImage | FlexIcon | FlexButton | FlexSeparator | FlexVideo;
 
 // Background definition for Box
 export interface FlexBackground {
@@ -287,7 +301,8 @@ export type AnySpecificComponentDefinition =
   | ComponentDefinition<FlexIcon>
   | ComponentDefinition<FlexButton>
   | ComponentDefinition<FlexSeparator>
-  | ComponentDefinition<FlexSpacer>
+  // ComponentDefinition<FlexSpacer> removed
+  | ComponentDefinition<FlexVideo>
   | ComponentDefinition<FlexBubble>
   | ComponentDefinition<FlexCarousel>;
 
@@ -316,11 +331,13 @@ type BaseLineApiComponent<T extends FlexComponentBase> = Omit<T, 'id'>;
 
 // Specific transformations for components with nested Flex structures
 type LineApiFlexBoxContents = BaseLineApiComponent<FlexBox> & { contents?: LineApiFlexComponent<FlexComponent>[] };
-type LineApiFlexImageItself = BaseLineApiComponent<FlexImage>; // Image itself doesn't nest FlexComponents for this transform
+type LineApiFlexImageItself = BaseLineApiComponent<FlexImage>; 
+type LineApiFlexVideoItself = Omit<BaseLineApiComponent<FlexVideo>, 'altContent'> & { altContent?: LineApiFlexBoxContents };
+
 
 type LineApiFlexBubbleStructure = Omit<BaseLineApiComponent<FlexBubble>, 'header' | 'hero' | 'body' | 'footer'> & {
   header?: LineApiFlexBoxContents;
-  hero?: LineApiFlexBoxContents | LineApiFlexImageItself;
+  hero?: LineApiFlexBoxContents | LineApiFlexImageItself; // hero can be image or box
   body?: LineApiFlexBoxContents;
   footer?: LineApiFlexBoxContents;
 };
@@ -334,8 +351,9 @@ export type LineApiFlexComponent<T extends FlexComponentBase> =
   T extends FlexBox ? LineApiFlexBoxContents :
   T extends FlexBubble ? LineApiFlexBubbleStructure :
   T extends FlexCarousel ? LineApiFlexCarouselStructure :
-  T extends FlexImage ? LineApiFlexImageItself : // Handle FlexImage explicitly
-  BaseLineApiComponent<T>; // For simple components (Text, Icon, Button, Separator, Spacer)
+  T extends FlexImage ? LineApiFlexImageItself :
+  T extends FlexVideo ? LineApiFlexVideoItself :
+  BaseLineApiComponent<T>; // For simple components (Text, Icon, Button, Separator)
 
 // Ensure LineApiFlexContainer uses the correct transformed types
 export type LineApiFlexContainer = LineApiFlexBubbleStructure | LineApiFlexCarouselStructure;

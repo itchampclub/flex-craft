@@ -32,11 +32,12 @@ export const SeparatorIcon: React.FC<{className?: string}> = ({ className }) => 
   </svg>
 );
 
-export const SpacerIcon: React.FC<{className?: string}> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 ${className}`}>
-    <path d="M11 4h2v16h-2z" transform="rotate(90 12 12)" />
-  </svg>
-);
+// SpacerIcon is not exported as Spacer component is removed.
+// export const SpacerIcon: React.FC<{className?: string}> = ({ className }) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 ${className}`}>
+//     <path d="M11 4h2v16h-2z" transform="rotate(90 12 12)" />
+//   </svg>
+// );
 
 export const IconIcon: React.FC<{className?: string}> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 ${className}`}>
@@ -56,6 +57,14 @@ export const CarouselIcon: React.FC<{className?: string}> = ({ className }) => (
   </svg>
 );
 
+export const VideoIcon: React.FC<{className?: string}> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-5 h-5 ${className}`}>
+    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM15 16H5V8h10v8z"/>
+  </svg>
+);
+
+
+// These are not used directly by component definitions anymore, but kept if needed elsewhere
 export const HeaderIcon: React.FC<{className?: string}> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-5 h-5 ${className}`}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875A2.25 2.25 0 016 2.625h12A2.25 2.25 0 0120.25 4.875v0A2.25 2.25 0 0118 7.125H6A2.25 2.25 0 013.75 4.875zM3 8.625v10.5A2.25 2.25 0 005.25 21.375h13.5A2.25 2.25 0 0021 19.125V8.625M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />

@@ -2,11 +2,11 @@
 import React from 'react';
 import { 
     FlexContainer, FlexComponent, FlexBox, FlexText, FlexImage, FlexIcon, 
-    FlexButton, FlexSeparator, FlexSpacer, FlexBubble, FlexCarousel, 
+    FlexButton, FlexSeparator, FlexBubble, FlexCarousel, 
     FlexAlign, FlexGravity, FlexSpacing, FlexMargin, PreviewableFlexComponent, FlexImageSize, FlexImageAspectRatio, FlexImageAspectMode,
-    FlexURIAction
+    FlexURIAction, FlexVideo
 } from '../types';
-import { Action } from '../hooks/useAppReducer'; // Added Action import
+import { Action } from '../hooks/useAppReducer';
 
 // Helper to map Flex properties to Tailwind classes
 const getLayoutClasses = (layout: FlexBox['layout']): string => {
@@ -88,8 +88,9 @@ const getPaddingStyles = (component: FlexBox): React.CSSProperties => {
 
 const getFlexSizeClass = (size?: FlexImageSize): string => {
     const sizeMap: Partial<Record<FlexImageSize, string>> = {
-        xxs: 'text-[10px] leading-[14px]', xs: 'text-xs leading-tight', sm: 'text-sm leading-normal', md: 'text-base leading-relaxed',
-        lg: 'text-lg leading-relaxed', xl: 'text-xl leading-snug', xxl: 'text-2xl leading-snug',
+        xxs: 'text-[10px] leading-[14px]', xs: 'text-xs leading-tight', sm: 'text-sm leading-normal', md: 'text-base leading-normal', // Changed from leading-relaxed
+        lg: 'text-lg leading-normal', // Changed from leading-relaxed
+        xl: 'text-xl leading-snug', xxl: 'text-2xl leading-snug',
         full: 'w-full', 
     };
     if (size && sizeMap[size]) return sizeMap[size]!;
@@ -169,7 +170,7 @@ interface ComponentPreviewProps {
 const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch }) => {
   let content;
   const commonStyles: React.CSSProperties = {};
-  let clickableClass = 'cursor-pointer hover:outline hover:outline-2 hover:outline-offset-2 hover:outline-blue-400 dark:hover:outline-blue-500 transition-all duration-100';
+  let clickableClass = 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-1 hover:outline-blue-300 dark:hover:outline-blue-400 transition-all duration-100';
 
   const handleSelectComponent = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -208,6 +209,8 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
             className={`${getLayoutClasses(box.layout)} ${getAlignmentClasses(undefined, undefined, box.layout)} ${getJustifyContentClass(box.justifyContent)} ${getAlignItemsClass(box.alignItems)} ${getSpacingClass(box.spacing, box.layout)} w-full ${clickableClass}`}
             style={boxStyles}
             onClick={(e) => handleSelectComponent(e, box.id)}
+            role="group" 
+            aria-label={`Box container: ${box.layout} layout`}
         >
           {box.contents.map(child => <ComponentPreview key={child.id} component={child} dispatch={dispatch} />)}
         </div>
@@ -236,12 +239,14 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
       if (text.align === 'end') textAlignClass = 'text-right';
       
       const textBaseClasses = getFlexSizeClass(text.size);
+      const ariaLabelText = (typeof text.text === 'string' && text.text) ? text.text.substring(0,30) : "Empty Text";
 
       content = (
         <p 
           className={`${textBaseClasses} ${textAlignClass} ${text.wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap truncate'} ${clickableClass}`} 
           style={textStyles}
           onClick={(e) => handleSelectComponent(e, text.id)}
+          aria-label={`Text: ${ariaLabelText}`}
         >
           {text.contents && text.contents.length > 0 ? text.contents.map((span, idx) => {
             const spanStyles: React.CSSProperties = {};
@@ -253,7 +258,7 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
             const spanSizeClass = getFlexSizeClass(span.size); 
 
             return <span key={idx} className={spanSizeClass} style={spanStyles}>{span.text}</span>;
-          }) : text.text}
+          }) : (text.text || '')}
         </p>
       );
       break;
@@ -269,6 +274,7 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
             style={imageStyles}
             className={`block ${clickableClass}`}
             onClick={(e) => handleSelectComponent(e, image.id)}
+            aria-label="Image component"
         />);
       break;
     case 'icon':
@@ -279,7 +285,7 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
         ...iconBaseStyles,
         objectFit: 'contain' as React.CSSProperties['objectFit'] 
       };
-      content = <img src={iconComp.url} alt="Flex message icon" style={iconStyles} className={`block ${clickableClass}`} onClick={(e) => handleSelectComponent(e, iconComp.id)} />;
+      content = <img src={iconComp.url} alt="Flex message icon" style={iconStyles} className={`block ${clickableClass}`} onClick={(e) => handleSelectComponent(e, iconComp.id)} aria-label="Icon component" />;
       break;
     case 'button':
       const button = component as FlexButton;
@@ -305,6 +311,7 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
             className={buttonClasses} 
             style={buttonStyles}
             onClick={(e) => handleSelectComponent(e, button.id)}
+            aria-label={`Button: ${button.action.label || "No label"}`}
         >
           {button.action.label || "Button"}
         </button>
@@ -316,34 +323,46 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
       separatorStyles.height = '1px';
       separatorStyles.backgroundColor = separator.color || '#E0E0E0';
       separatorStyles.width = '100%';
-      // Separators are usually not interactive for selection in a dense UI, but can be added if needed.
-      content = <div style={separatorStyles} onClick={(e) => handleSelectComponent(e, separator.id)} className={clickableClass}></div>;
+      content = <div style={separatorStyles} onClick={(e) => handleSelectComponent(e, separator.id)} className={clickableClass} role="separator" aria-label="Separator"></div>;
       break;
-    case 'spacer':
-      const spacer = component as FlexSpacer;
-      const SIZES_SPACER: Record<FlexSpacing, string> = {
-        none: '0px', xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px', xxl: '24px'
-      };
-      const spacerSize = SIZES_SPACER[spacer.size || 'md'];
-      // Spacers are typically not selectable.
-      content = <div style={{ ...commonStyles, height: spacerSize, width: spacerSize, flexShrink: 0 }}></div>;
-      clickableClass = ''; // Spacers not clickable for selection
+    case 'video':
+      const video = component as FlexVideo;
+      const videoStyles = { ...commonStyles, ...getImageSizeStyles('full', video.aspectRatio, 'cover') };
+      content = (
+        <div style={{position: 'relative', ...videoStyles}} className={clickableClass} onClick={(e) => handleSelectComponent(e, video.id)} aria-label="Video component">
+            <img 
+                src={video.previewUrl} 
+                alt="Video preview" 
+                style={{width: '100%', height: '100%', objectFit: 'cover'}} 
+            />
+            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px'}} aria-hidden="true">
+                <i className="fas fa-play text-2xl"></i>
+            </div>
+        </div>
+      );
       break;
     case 'bubble':
         const bubble = component as FlexBubble;
         const bubbleStyles: React.CSSProperties = {...commonStyles};
         
-        let bubbleWidthClass = 'w-full max-w-[300px]'; 
-        if (bubble.size === 'nano') bubbleWidthClass = 'w-full max-w-[120px]';
-        else if (bubble.size === 'micro') bubbleWidthClass = 'w-full max-w-[160px]';
-        else if (bubble.size === 'kilo') bubbleWidthClass = 'w-full max-w-[240px]';
-        else if (bubble.size === 'giga') bubbleWidthClass = 'w-full max-w-[340px]';
+        let bubbleWidthClass = 'w-full max-w-[300px]'; // Default Mega
+        if (bubble.size === 'nano') bubbleWidthClass = 'max-w-[150px]'; // Adjusted for potentially smaller phone view
+        else if (bubble.size === 'micro') bubbleWidthClass = 'max-w-[180px]';
+        else if (bubble.size === 'kilo') bubbleWidthClass = 'max-w-[260px]';
+        else if (bubble.size === 'giga') bubbleWidthClass = 'max-w-[320px]'; // Max width of LINE bubble
+
+        // Bubbles should take full width of their container in the preview if possible, up to their max LINE spec.
+        // The iphone sim provides the constraint.
+        bubbleWidthClass = `w-full ${bubbleWidthClass}`;
+
 
         content = (
             <div 
-              className={`bg-white dark:bg-slate-800 shadow-lg rounded-lg overflow-hidden ${bubbleWidthClass} flex-shrink-0 ${clickableClass}`} 
+              className={`bg-white dark:bg-line-lightGray shadow-lg rounded-lg overflow-hidden ${bubbleWidthClass} flex-shrink-0 ${clickableClass}`} 
               style={bubbleStyles}
               onClick={(e) => handleSelectComponent(e, bubble.id)}
+              role="article"
+              aria-label={`Bubble container: ${bubble.size || 'mega'} size`}
             >
                 {bubble.header && <div style={{backgroundColor: bubble.styles?.header?.backgroundColor}}><ComponentPreview component={bubble.header} dispatch={dispatch} /></div>}
                 {bubble.hero && <div style={{backgroundColor: bubble.styles?.hero?.backgroundColor}}><ComponentPreview component={bubble.hero} dispatch={dispatch} /></div>}
@@ -354,10 +373,13 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
         break;
      case 'carousel':
         const carousel = component as FlexCarousel;
-        // Carousel itself is not directly selectable, selection happens on child bubbles
         clickableClass = ''; 
         content = (
-            <div className={`flex flex-row overflow-x-auto space-x-2 p-2 w-full snap-x snap-mandatory ${clickableClass}`} onClick={(e) => handleSelectComponent(e, carousel.id)}>
+            <div className={`flex flex-row overflow-x-auto space-x-2 p-1 w-full snap-x snap-mandatory ${clickableClass}`} 
+                 onClick={(e) => handleSelectComponent(e, carousel.id)} 
+                 role="region" 
+                 aria-label="Carousel of bubbles"
+            >
                 {carousel.contents.map(b => (
                     <div key={b.id} className="snap-center flex-shrink-0">
                         <ComponentPreview component={b} dispatch={dispatch} />
@@ -369,7 +391,7 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
     default:
       const unknownComponent = component as any;
       content = <div className="text-red-500">Unsupported component type: {unknownComponent.type}</div>;
-      clickableClass = '';
+      clickableClass = ''; 
   }
   
   let wrapperClasses = '';
@@ -380,32 +402,67 @@ const ComponentPreview: React.FC<ComponentPreviewProps> = ({ component, dispatch
   const finalStyles = Object.keys(commonStyles).length > 0 && !commonStyles.margin 
                       ? commonStyles 
                       : (commonStyles.margin && wrapperClasses.includes("m-") ? {...commonStyles, margin:undefined} : commonStyles);
+  
+  const isRootContainer = component.id === 'root-bubble' || component.id === 'root-carousel';
+  const applyClickable = clickableClass && !isRootContainer && component.type !== 'carousel';
 
-  return <div className={`${wrapperClasses} ${clickableClass && component.type !== 'spacer' ? clickableClass : ''}`} style={finalStyles}>{content}</div>;
+
+  return <div className={`${wrapperClasses} ${applyClickable ? clickableClass : ''}`} style={finalStyles}>{content}</div>;
 };
 
 
 interface PreviewPanelProps {
   flexMessage: FlexContainer;
-  dispatch: React.Dispatch<Action>; // Added dispatch
+  dispatch: React.Dispatch<Action>; 
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({ flexMessage, dispatch }) => {
+  const phoneFrameBg = 'bg-slate-800 dark:bg-black'; // Frame color
+  const lineHeaderBg = 'bg-[#3A4B5F] dark:bg-[#2c3a4a]'; // Dark slate blue from image
+  const lineChatAreaBg = 'bg-line-preview-bg dark:bg-slate-700'; // Muted blue-gray for chat background
+
   return (
-    <div className="h-full bg-line-lightGray dark:bg-line-charcoal p-2 md:p-4 flex flex-col items-center justify-start overflow-y-auto">
-      <div className="w-[320px] bg-gray-800 rounded-[24px] p-2 shadow-2xl flex-shrink-0"> {/* iPhone like frame */}
-        <div className="bg-black h-[20px] w-[120px] mx-auto rounded-b-lg mb-2 relative"> {/* Notch */}
-          <div className="absolute top-1/2 left-3 transform -translate-y-1/2 bg-gray-700 h-1.5 w-1.5 rounded-full"></div> {/* Camera */}
-          <div className="absolute top-1/2 left-7 transform -translate-y-1/2 bg-gray-700 h-1 w-8 rounded-sm"></div> {/* Speaker */}
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-[16px] overflow-hidden min-h-[500px] flex"> {/* Screen */}
-          <div className="w-full">
-            <ComponentPreview component={flexMessage} dispatch={dispatch} />
+    <div className="h-full bg-gray-200 dark:bg-slate-800 p-2 md:p-4 flex flex-col items-center justify-center overflow-hidden">
+      {/* iPhone X Frame */}
+      <div className={`w-[320px] h-[680px] ${phoneFrameBg} rounded-[44px] p-3 shadow-2xl relative flex flex-col`}>
+        {/* Notch Removed */}
+        
+        {/* Status bar area (empty for simplicity, part of phone frame color) */}
+        <div className="h-[30px] flex-shrink-0 relative z-10 pt-1"> {/* Added pt-1 to push content slightly down from the top edge */}
+          <div className="absolute top-1/2 left-4 transform -translate-y-1/2 text-white text-xs font-semibold">19:40</div>
+          <div className="absolute top-1/2 right-4 transform -translate-y-1/2 text-white text-xs flex items-center space-x-1">
+            <i className="fas fa-signal text-[10px]"></i>
+            <i className="fas fa-wifi text-[10px]"></i>
+            <i className="fas fa-battery-three-quarters text-sm"></i>
           </div>
         </div>
-      </div>
-       <div className="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
-        LINE Preview (Simulated)
+
+        {/* LINE App Header */}
+        <div className={`${lineHeaderBg} h-[48px] flex-shrink-0 flex items-center justify-between px-3 text-white rounded-t-lg relative z-10`}>
+          <i className="fas fa-chevron-left text-lg"></i>
+          <div className="flex items-center space-x-1.5">
+            <i className="fas fa-shield-alt text-green-400 text-sm"></i>
+            <span className="text-sm font-medium">flex message</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <i className="fas fa-home text-lg"></i>
+            <i className="fas fa-chevron-down text-lg"></i>
+          </div>
+        </div>
+
+        {/* LINE Chat Content Area */}
+        <div className={`${lineChatAreaBg} flex-grow overflow-y-auto rounded-b-lg p-2 hide-scrollbar-chat-area`}>
+          {/* ComponentPreview is now rendered within this scrollable chat area */}
+          {flexMessage ? (
+            <div className="w-full"> {/* Container for ComponentPreview to manage width correctly */}
+                <ComponentPreview component={flexMessage} dispatch={dispatch} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-white/70">
+              <p>Loading Flex Message...</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

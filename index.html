@@ -29,6 +29,7 @@
               'line-green': '#06C755',
               'line-lightGray': '#F7F7F7', // Simulated LINE chat background (light)
               'line-charcoal': '#2E2E2E', // Simulated LINE chat background (dark)
+              'line-preview-bg': '#7B8FA1', // Muted blue-gray for preview panel background
             },
             keyframes: {
               fadeIn: {
@@ -48,6 +49,18 @@
         }
       }
     </script>
+  <style>
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .hide-scrollbar-chat-area::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .hide-scrollbar-chat-area {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {

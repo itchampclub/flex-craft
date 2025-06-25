@@ -1,13 +1,17 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { AiMode, FlexContainer, FlexBubble, FlexCarousel, FlexComponent, FlexButton, FlexBox, FlexImage } from "../types";
-// stripIds is not used in this service, it's for preparing output in JsonViewModal
-// import { stripIds } from "../utils/flexTransform";
+import { AiMode, FlexContainer, FlexBubble, FlexCarousel } from "../types"; // Added FlexBubble, FlexCarousel
+import { stripIds } from "../utils/flexTransform";
 
-const MODEL_TEXT = 'gemini-2.5-flash-preview-04-17';
+// This service uses the API key provided by the user and stored in localStorage.
+// The `process.env.API_KEY` is NOT used here as per the prompt instructions for runtime.
+
+const MODEL_TEXT = 'gemini-2.5-flash-preview-04-17'; // General tasks
+// const MODEL_IMAGE = 'imagen-3.0-generate-002'; // For image generation, if needed later
 
 const cleanJsonString = (jsonStr: string): string => {
   let cleaned = jsonStr.trim();
+  // Remove markdown fences (```json ... ``` or ``` ... ```)
   const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
   const match = cleaned.match(fenceRegex);
   if (match && match[2]) {
@@ -15,36 +19,6 @@ const cleanJsonString = (jsonStr: string): string => {
   }
   return cleaned;
 };
-
-// Recursive function to sanitize components, e.g., button height
-const sanitizeComponents = (component: any): void => {
-  if (!component || typeof component !== 'object') {
-    return;
-  }
-
-  // Sanitize FlexButton height
-  if (component.type === 'button') {
-    const button = component as FlexButton;
-    if (button.height && button.height !== 'sm' && button.height !== 'md') {
-      console.warn(`AI generated an invalid height ("${button.height}") for a button (ID: ${button.id || 'N/A'}). Sanitizing it out.`);
-      delete (button as any).height;
-    }
-  }
-
-  // Recursively sanitize children
-  if (component.type === 'box' && Array.isArray(component.contents)) {
-    component.contents.forEach(sanitizeComponents);
-  } else if (component.type === 'bubble') {
-    const bubble = component as FlexBubble;
-    if (bubble.header) sanitizeComponents(bubble.header);
-    if (bubble.hero) sanitizeComponents(bubble.hero);
-    if (bubble.body) sanitizeComponents(bubble.body);
-    if (bubble.footer) sanitizeComponents(bubble.footer);
-  } else if (component.type === 'carousel' && Array.isArray(component.contents)) {
-    component.contents.forEach(sanitizeComponents);
-  }
-};
-
 
 export const callGeminiApi = async (
   apiKey: string,
@@ -58,32 +32,31 @@ export const callGeminiApi = async (
   
   const ai = new GoogleGenAI({ apiKey });
 
-  const commonInstructions = `
-    The JSON output should strictly follow the LINE Flex Message specification. 
-    Ensure all component types (bubble, carousel, box, text, image, button, icon, separator, spacer, etc.), their properties, and the valid values for those properties are correct.
-    For example, FlexButton height can only be 'sm' or 'md'. Do not use other values.
-    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
-    Incorporate relevant emojis within text content where appropriate for a youthful and engaging tone.
-    Suggest or use icon URLs (for FlexIcon) or image URLs (for FlexImage) that fit a vibrant, modern aesthetic. Use placeholder image URLs like 'https://picsum.photos/seed/example/600/400' if actual images are not specified in the prompt.
-    Employ vibrant and appealing color schemes suitable for a younger audience.
-    Before finalizing the response, rigorously double-check the generated JSON output against the LINE Flex Message specification.
-    Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
-    If a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}. Max 2 bubbles in a carousel unless specified.
-    Make it visually appealing and ready for practical use.
-  `;
+  const allowedComponentsInstruction = "You MUST ONLY use the following component types: 'bubble', 'carousel', 'box', 'button', 'image', 'video', 'icon', 'text', 'separator'. For 'text' components, you can also use 'span' type for rich text. Ensure all properties for these components are valid according to the LINE Flex Message specification.";
 
   let fullPrompt = "";
   if (mode === AiMode.Generate) {
     fullPrompt = `You are an expert LINE Flex Message designer. Create a valid LINE Flex Message JSON (either a single Bubble or a Carousel) based on the following request: "${prompt}".
-    ${commonInstructions}`;
+    ${allowedComponentsInstruction}
+    The JSON output should strictly follow the LINE Flex Message specification.
+    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
+    Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
+    For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}.
+    Use placeholder image URLs like 'https://picsum.photos/seed/example/600/400' if images are needed. Max 2 bubbles in a carousel for simplicity.
+    Make it visually appealing.`;
   } else if (mode === AiMode.Improve && currentDesignJson) {
     fullPrompt = `You are an expert LINE Flex Message designer. Given the following LINE Flex Message JSON:
     \`\`\`json
     ${currentDesignJson}
     \`\`\`
     Apply the following improvements based on this request: "${prompt}".
+    ${allowedComponentsInstruction}
     Return the fully modified LINE Flex Message JSON (either a single Bubble or a Carousel).
-    ${commonInstructions}`;
+    The JSON output should strictly follow the LINE Flex Message specification.
+    The 'hero' component (if present in a bubble) should NOT contain an 'alt' field. The overall message altText is handled separately.
+    Output ONLY the raw JSON object, without any surrounding text, explanations, or markdown fences.
+    For example, if a bubble is requested, output should start with {"type": "bubble", ...}. If a carousel, {"type": "carousel", ...}.
+    Make it visually appealing.`;
   } else {
     throw new Error("Invalid AI mode or missing current design for improvement.");
   }
@@ -93,7 +66,8 @@ export const callGeminiApi = async (
         model: MODEL_TEXT,
         contents: fullPrompt,
         config: {
-            responseMimeType: "application/json",
+            responseMimeType: "application/json", // Request JSON output
+            // Omit thinkingConfig for higher quality (default enabled)
         }
     });
 
@@ -103,15 +77,8 @@ export const callGeminiApi = async (
     }
     
     const cleanedJson = cleanJsonString(rawJsonText);
-    let parsedJson: FlexContainer;
 
-    try {
-        parsedJson = JSON.parse(cleanedJson) as FlexContainer;
-    } catch (parseError: any) {
-        console.error("Failed to parse JSON from AI:", cleanedJson, parseError);
-        throw new SyntaxError("AI returned an invalid JSON structure. Try refining your prompt. Raw AI output: " + cleanedJson);
-    }
-    
+    const parsedJson = JSON.parse(cleanedJson) as FlexContainer; // Assume it's a FlexContainer initially
 
     // Sanitize: Remove 'alt' from hero if present
     if (parsedJson.type === 'bubble') {
@@ -136,10 +103,8 @@ export const callGeminiApi = async (
       }
     }
 
-    // Apply further sanitization (e.g., button height)
-    sanitizeComponents(parsedJson);
 
-
+    // Basic validation for LINE Flex Message structure
     if (!parsedJson.type || (parsedJson.type !== 'bubble' && parsedJson.type !== 'carousel')) {
       console.error("Parsed JSON is not a valid Flex Message container:", parsedJson);
       throw new Error("AI response is not a valid LINE Flex Message (Bubble or Carousel). Please try a more specific prompt.");
@@ -148,7 +113,7 @@ export const callGeminiApi = async (
     return parsedJson;
 
   } catch (error: any) {
-    console.error("Error calling Gemini API or processing response:", error);
+    console.error("Error calling Gemini API or parsing response:", error);
     let errorMessage = "Failed to generate Flex Message with AI.";
     if (error.message) {
         errorMessage += ` Details: ${error.message}`;
@@ -156,8 +121,7 @@ export const callGeminiApi = async (
     if (error.message && error.message.includes("API key not valid")) {
         errorMessage = "Invalid Gemini API Key. Please check your settings.";
     } else if (error instanceof SyntaxError) {
-        // SyntaxError from our custom throw for parsing issues
-        errorMessage = error.message; // Use the message from the custom SyntaxError
+        errorMessage = "AI returned an invalid JSON structure. Try refining your prompt for a clearer JSON output. The raw AI output was: " + (error as any).rawResponseTextForDebug;
     }
     throw new Error(errorMessage);
   }

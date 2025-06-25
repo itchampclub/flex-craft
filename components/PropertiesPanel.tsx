@@ -3,7 +3,7 @@ import React from 'react';
 import { 
     AnyFlexComponent, FlexAction, FlexBox, FlexButton, FlexComponentBase, FlexImage, FlexText, 
     FlexBubble, FlexCarousel, FlexActionBase, FlexURIAction, FlexPostbackAction, FlexMessageAction,
-    FlexDatetimePickerAction // Added import
+    FlexDatetimePickerAction, FlexVideo // Added FlexVideo
 } from '../types';
 import { Action } from '../hooks/useAppReducer'; // Corrected import
 import { 
@@ -217,10 +217,16 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component, dispatch }
     dispatch({ type: 'UPDATE_COMPONENT_PROPS', payload: { componentId: component.id, props: { action: newAction } } });
   };
 
-  const renderCommonProperties = (comp: AnyFlexComponent) => (
+  const renderCommonProperties = (comp: AnyFlexComponent) => {
+    // Some components like Bubble/Carousel don't have flex/margin at their root in the same way simple components do.
+    // Check if property exists before rendering input for it.
+    const hasFlex = 'flex' in comp;
+    const hasMargin = 'margin' in comp;
+
+    return (
     <>
-      <PropertyInput label="Flex Grow" propertyKey="flex" value={(comp as any).flex} onChange={(val) => updateProperty('flex', val)} type="number" componentType={comp.type} />
-      <PropertyInput 
+      {hasFlex && <PropertyInput label="Flex Grow" propertyKey="flex" value={(comp as any).flex} onChange={(val) => updateProperty('flex', val)} type="number" componentType={comp.type} />}
+      {hasMargin && <PropertyInput 
         label="Margin" 
         propertyKey="margin"
         value={(comp as any).margin} 
@@ -234,12 +240,12 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component, dispatch }
             ])
         }
         componentType={comp.type} 
-      />
+      />}
       {/* TODO: Add position, offsetTop, etc. for components that support it */}
     </>
-  );
+  )};
 
-  const renderActionProperty = (comp: FlexText | FlexImage | FlexButton | FlexBox | FlexBubble) => {
+  const renderActionProperty = (comp: FlexText | FlexImage | FlexButton | FlexBox | FlexBubble | FlexVideo) => {
      if (!('action' in comp)) return null; 
      const currentAction = comp.action as FlexAction | undefined; 
 
@@ -250,7 +256,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component, dispatch }
                  <ActionPropertiesEditor action={currentAction} onActionChange={handleActionChange} componentId={comp.id} />
             ) : (
                 <button 
-                    onClick={() => handleActionChange({ type: 'uri', label: 'Button', uri: 'https://example.com' } as FlexURIAction)}
+                    onClick={() => handleActionChange({ type: 'uri', label: 'Action', uri: 'https://example.com' } as FlexURIAction)}
                     className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
                 >
                     + Add Action
@@ -279,6 +285,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component, dispatch }
           <PropertyInput label="Max Lines" propertyKey="maxLines" value={(component as FlexText).maxLines} onChange={(val) => updateProperty('maxLines', val)} type="number" componentType="text" />
           {renderCommonProperties(component)}
           {renderActionProperty(component as FlexText)}
+          {/* TODO: Add editor for FlexText.contents (FlexSpan[]) if needed */}
         </>
       )}
 
@@ -331,7 +338,32 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component, dispatch }
            {renderCommonProperties(component)}
         </>
       )}
-      {/* Add other component types: Icon, Separator, Spacer */}
+      {component.type === 'video' && (
+        <>
+            <PropertyInput label="Video URL" propertyKey="url" value={(component as FlexVideo).url} onChange={(val) => updateProperty('url', val)} componentType="video" />
+            <PropertyInput label="Preview Image URL" propertyKey="previewUrl" value={(component as FlexVideo).previewUrl} onChange={(val) => updateProperty('previewUrl', val)} componentType="video" />
+            <PropertyInput label="Aspect Ratio" propertyKey="aspectRatio" value={(component as FlexVideo).aspectRatio} onChange={(val) => updateProperty('aspectRatio', val)} options={FLEX_IMAGE_ASPECT_RATIOS.map(s => ({value:s, label:s}))} componentType="video" />
+            {/* TODO: altContent (Box) editor - this is complex as it involves adding/editing a nested Box component */}
+            {renderCommonProperties(component)}
+            {renderActionProperty(component as FlexVideo)}
+        </>
+      )}
+      {component.type === 'separator' && (
+        <>
+            <PropertyInput label="Color" propertyKey="color" value={(component as any).color} onChange={(val) => updateProperty('color', val)} type="color" componentType="separator" />
+            {renderCommonProperties(component)}
+        </>
+      )}
+      {component.type === 'icon' && (
+         <>
+            <PropertyInput label="Icon URL" propertyKey="url" value={(component as any).url} onChange={(val) => updateProperty('url', val)} componentType="icon" />
+            <PropertyInput label="Size" propertyKey="size" value={(component as any).size} onChange={(val) => updateProperty('size', val)} options={FLEX_SIZES.map(s => ({value: s, label:s}))} componentType="icon" />
+            <PropertyInput label="Aspect Ratio" propertyKey="aspectRatio" value={(component as any).aspectRatio} onChange={(val) => updateProperty('aspectRatio', val)} options={FLEX_IMAGE_ASPECT_RATIOS.map(s => ({value:s, label:s}))} componentType="icon" />
+            {renderCommonProperties(component)}
+            {/* Icons don't typically have actions in LINE Flex, but action prop could be added to FlexIcon type if desired/supported */}
+        </>
+      )}
+      {/* Spacer component is removed, so its properties editor is not needed */}
     </div>
   );
 };

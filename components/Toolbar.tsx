@@ -79,7 +79,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ state, dispatch }) => {
   const devLinks = [
     { name: "LINE Flex Simulator", url: "https://developers.line.biz/flex-simulator/", icon: "fas fa-flask" },
     { name: "LINE Developers Console", url: "https://developers.line.biz/console/", icon: "fas fa-terminal" },
-    { name: "LINE OA Manager", url: "https://manager.line.biz/", icon: "fas fa-user-cog" }
+    { name: "LINE OA Manager", url: "https://manager.line.biz/", icon: "fas fa-user-cog" },
+    { name: "Sourcecode", url: "https://github.com/itchampclub/flex-craft", icon: "fab fa-github" }
   ];
 
   return (

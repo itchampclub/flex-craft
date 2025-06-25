@@ -1,5 +1,5 @@
 
-import { FlexComponent, FlexContainer, FlexBox, FlexBubble, FlexCarousel, LineApiFlexContainer, LineApiFlexComponent, FlexImage } from '../types';
+import { FlexComponent, FlexContainer, FlexBox, FlexBubble, FlexCarousel, LineApiFlexContainer, LineApiFlexComponent, FlexImage, FlexVideo, FlexText } from '../types';
 import { generateId } from './generateId';
 
 // Recursive function to strip 'id' from components and sanitize specific fields like hero.alt
@@ -10,7 +10,7 @@ export function stripIds<T extends FlexComponent | FlexContainer>(component: T):
 
   // Base for the stripped component, includes type and all other properties except 'id'.
   // This is effectively Omit<T, 'id'>.
-  const baseStrippedComponent = { type, ...restFromComponent };
+  let baseStrippedComponent = { type, ...restFromComponent } as any;
 
   if (type === 'box' && baseStrippedComponent.contents) {
     const boxContents = baseStrippedComponent.contents as FlexComponent[];
@@ -19,6 +19,16 @@ export function stripIds<T extends FlexComponent | FlexContainer>(component: T):
       contents: boxContents.map(child => stripIds(child)),
     } as LineApiFlexComponent<T>;
   }
+
+  if (type === 'video' && baseStrippedComponent.altContent) {
+    const videoComp = component as FlexVideo; // Original component
+    const strippedAltContent = stripIds(videoComp.altContent as FlexBox); // altContent must be a Box
+    return {
+      ...baseStrippedComponent,
+      altContent: strippedAltContent,
+    } as LineApiFlexComponent<T>;
+  }
+
 
   if (type === 'bubble') {
     const originalBubble = component as FlexBubble; // For reading original sections
@@ -81,10 +91,15 @@ export function addIdsToFlexMessage(flexMessage: LineApiFlexContainer): FlexCont
             recursivelyAddIds(component.footer);
         } else if (component.type === 'carousel' && component.contents) {
             component.contents.forEach(recursivelyAddIds);
+        } else if (component.type === 'video' && component.altContent) {
+            recursivelyAddIds(component.altContent);
         }
         // Handle other component types that might have nested structures if necessary
         if (component.type === 'button' && component.action && typeof component.action.label === 'undefined') {
             component.action.label = 'Button'; // Default label if missing, useful after AI gen
+        }
+        if (component.type === 'text' && typeof component.text !== 'string') {
+            component.text = ''; // Default text content to empty string if missing or not a string
         }
         // Ensure span elements within text components also get unique IDs if they were ever to be selectable/modifiable individually
         // For now, spans don't have IDs in the type definition, so this is not needed.

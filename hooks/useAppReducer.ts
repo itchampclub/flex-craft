@@ -1,6 +1,6 @@
 
 import { useReducer, useCallback } from 'react';
-import { AppState as AppStateDefinition, FlexContainer as FlexContainerDefinition, FlexComponent, FlexBox, FlexBubble, FlexCarousel, Design as DesignDefinition, AnySpecificComponentDefinition, AnyFlexComponent, FlexImage, FlexText, LineApiFlexContainer, Design } from '../types'; // AiMode import removed, will be taken from types.ts directly
+import { AppState as AppStateDefinition, FlexContainer as FlexContainerDefinition, FlexComponent, FlexBox, FlexBubble, FlexCarousel, Design as DesignDefinition, AnySpecificComponentDefinition, AnyFlexComponent, FlexImage, FlexText, LineApiFlexContainer, Design, FlexVideo, ComponentDefinition } from '../types'; // AiMode import removed, will be taken from types.ts directly
 import { generateId } from '../utils/generateId';
 import { COMPONENT_DEFINITIONS, INITIAL_EMPTY_BUBBLE, INITIAL_EMPTY_CAROUSEL, TEMPLATES } from '../constants';
 import { addIdsToFlexMessage } from '../utils/flexTransform';
@@ -56,8 +56,13 @@ const findAndUpdateRecursive = (current: AnyFlexComponent, targetId: string, upd
     if (newContents.length !== current.contents.length || newContents.some((c, i) => c !== current.contents[i])) {
         return { ...current, contents: newContents };
     }
-  }
-  if (current.type === 'bubble') { // current is FlexBubble
+  } else if (current.type === 'video' && (current as FlexVideo).altContent) { // Check altContent for FlexVideo
+    const videoComp = current as FlexVideo;
+    const processedAltContent = findAndUpdateRecursive(videoComp.altContent!, targetId, updateFn);
+    if (processedAltContent !== videoComp.altContent) {
+        return { ...videoComp, altContent: processedAltContent === null ? undefined : processedAltContent as FlexBox | undefined };
+    }
+  } else if (current.type === 'bubble') { // current is FlexBubble
     const bubble = current as FlexBubble; // Explicit cast for clarity within this block
     
     const processedHeader = bubble.header ? findAndUpdateRecursive(bubble.header, targetId, updateFn) : undefined;
@@ -78,8 +83,7 @@ const findAndUpdateRecursive = (current: AnyFlexComponent, targetId: string, upd
         footer: processedFooter === null ? undefined : processedFooter as FlexBox | undefined 
       };
     }
-  }
-  if (current.type === 'carousel' && current.contents) { // current is FlexCarousel
+  } else if (current.type === 'carousel' && current.contents) { // current is FlexCarousel
     const newContents = current.contents.map(b => findAndUpdateRecursive(b, targetId, updateFn)).filter(b => b !== null) as FlexBubble[];
     if (newContents.length !== current.contents.length || newContents.some((b, i) => b !== current.contents[i])) {
          return { ...current, contents: newContents };
@@ -136,6 +140,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
             if(comp.footer) comp.footer = ensureIdsRecursive(comp.footer);
         } else if (comp.type === 'carousel' && comp.contents) {
             comp.contents = comp.contents.map((child: any) => ensureIdsRecursive(child));
+        } else if (comp.type === 'video' && comp.altContent) { // Ensure altContent of video gets IDs
+            comp.altContent = ensureIdsRecursive(comp.altContent);
         }
         if (comp.type === 'button' && comp.action && typeof comp.action.label === 'undefined') {
             comp.action.label = 'Button';
@@ -159,10 +165,14 @@ const appReducer = (state: AppState, action: Action): AppState => {
             console.warn(`Cannot add component of type ${componentToAdd.type} to bubble section ${asBubbleSection}`);
             return parent; // Return original parent if type mismatch
         } else if (parent.type === 'box') {
-          if (componentToAdd.type !== 'bubble' && componentToAdd.type !== 'carousel') { // Ensure non-container components
-            const parentDef = COMPONENT_DEFINITIONS.find(def => def.type === parent.type && def.name === 'Box'); 
-             if (parentDef?.acceptedChildTypes?.includes(componentToAdd.type as FlexComponent['type'])) { // Check if type is accepted
-                 return { ...parent, contents: [...(parent.contents || []), componentToAdd as FlexComponent] };
+          // Check if the component being added is a valid child for a Box
+          // It should not be a 'bubble' or 'carousel' (these are root/top-level containers)
+          const isSimpleComponent = !['bubble', 'carousel'].includes(componentToAdd.type);
+
+          if (isSimpleComponent) {
+            const parentBoxDef = COMPONENT_DEFINITIONS.find(def => def.type === 'box' && def.name === 'Box') as ComponentDefinition<FlexBox> | undefined;
+            if (parentBoxDef?.acceptedChildTypes?.includes(componentToAdd.type as FlexComponent['type'])) {
+                return { ...parent, contents: [...(parent.contents || []), componentToAdd as FlexComponent] };
             }
           }
         } else if (parent.type === 'carousel' && componentToAdd.type === 'bubble') { // Only bubbles in carousel
@@ -444,6 +454,9 @@ export const useAppReducer = () => {
           search(child);
           if (found) return;
         }
+      } else if (component.type === 'video' && (component as FlexVideo).altContent) {
+        search((component as FlexVideo).altContent!);
+        if (found) return;
       } else if (component.type === 'bubble') {
         if (component.header) search(component.header);
         if (found) return;

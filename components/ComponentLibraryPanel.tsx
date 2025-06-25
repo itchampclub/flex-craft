@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { COMPONENT_DEFINITIONS } from '../constants';
 import { Action } from '../hooks/useAppReducer';
-import { AnySpecificComponentDefinition, FlexContainer } from '../types';
+import { AnySpecificComponentDefinition, FlexContainer, FlexComponent } from '../types';
 import { useDrag } from 'react-dnd';
 
 const DraggableComponentItem: React.FC<{ definition: AnySpecificComponentDefinition; onDrop: (definition: AnySpecificComponentDefinition) => void }> = ({ definition }) => {
@@ -20,7 +20,7 @@ const DraggableComponentItem: React.FC<{ definition: AnySpecificComponentDefinit
 
   return (
     <div
-      ref={drag}
+      ref={drag as any}
       className={`p-3 m-1.5 border border-gray-300 dark:border-slate-600 rounded-md cursor-grab flex items-center space-x-3 
                   bg-white dark:bg-slate-700 hover:bg-primary-50 dark:hover:bg-slate-600 shadow-sm transition-all duration-150
                   ${isDragging ? 'opacity-50 ring-2 ring-primary-500' : ''}`}
@@ -59,8 +59,11 @@ const ComponentLibraryPanel: React.FC<ComponentLibraryPanelProps> = ({ dispatch,
         }
     }
     
+    // asBubbleSection logic is for pre-built blocks which are now removed.
+    // Keeping it for future use or if some components naturally fit sections.
+    // For now, it won't be triggered by current COMPONENT_DEFINITIONS.
     let asBubbleSection: 'header' | 'hero' | 'body' | 'footer' | undefined = undefined;
-    if (definition.isBlockElement) {
+    if (definition.isBlockElement) { // isBlockElement is no longer used by current components
         if (definition.name.toLowerCase().includes('header')) asBubbleSection = 'header';
         else if (definition.name.toLowerCase().includes('hero')) asBubbleSection = 'hero';
         else if (definition.name.toLowerCase().includes('body')) asBubbleSection = 'body';
@@ -71,14 +74,17 @@ const ComponentLibraryPanel: React.FC<ComponentLibraryPanelProps> = ({ dispatch,
   };
   
   const filteredComponents = COMPONENT_DEFINITIONS.filter(def => 
-    def.name.toLowerCase().includes(searchTerm.toLowerCase())
+    def.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
+    // Ensure removed block elements are not shown
+    !def.isBlockElement 
   );
 
+
   const componentGroups = {
-    Containers: filteredComponents.filter(c => c.type === 'bubble' || c.type === 'carousel'),
-    Layout: filteredComponents.filter(c => c.type === 'box' && !c.isBlockElement),
-    Content: filteredComponents.filter(c => ['text', 'image', 'icon', 'button', 'separator', 'spacer'].includes(c.type) && !c.isBlockElement),
-    Sections: filteredComponents.filter(c => c.isBlockElement),
+    Container: filteredComponents.filter(c => c.type === 'bubble' || c.type === 'carousel'),
+    Component: filteredComponents.filter(c => 
+      !(c.type === 'bubble' || c.type === 'carousel') // Everything that is not a Bubble or Carousel
+    ),
   };
 
   return (

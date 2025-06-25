@@ -1,11 +1,12 @@
 
 import { 
     ComponentDefinition, FlexAction, FlexBox, FlexBubble, FlexButton, FlexCarousel, 
-    FlexIcon, FlexImage, FlexSeparator, FlexSpacer, FlexText, FlexImageSize,
+    FlexIcon, FlexImage, FlexSeparator, FlexText, FlexImageSize,
     FlexSpacing, FlexAlign, FlexGravity, FlexImageAspectRatio, FlexImageAspectMode,
-    AnySpecificComponentDefinition, FlexComponent
+    AnySpecificComponentDefinition, FlexComponent, FlexVideo
 } from './types';
-import { BoxIcon, TextIcon, ImageIcon, ButtonIcon, SeparatorIcon, SpacerIcon, IconIcon as UIIcon, BubbleIcon, CarouselIcon, HeaderIcon, HeroIcon, BodyIcon, FooterIcon } from './components/icons';
+import { BoxIcon, TextIcon, ImageIcon, ButtonIcon, SeparatorIcon, IconIcon as UIIcon, BubbleIcon, CarouselIcon, VideoIcon } from './components/icons';
+// Removed SpacerIcon, HeaderIcon, HeroIcon, BodyIcon, FooterIcon imports as components are removed
 import React from 'react';
 
 const defaultBubbleBody = (): FlexBox => ({
@@ -36,6 +37,7 @@ const defaultBubbleBody = (): FlexBox => ({
 const defaultAction = (): FlexAction => ({ type: 'uri', label: 'Learn More', uri: 'https://example.com' });
 
 export const COMPONENT_DEFINITIONS: AnySpecificComponentDefinition[] = [
+  // Containers
   {
     name: 'Bubble',
     type: 'bubble',
@@ -58,12 +60,14 @@ export const COMPONENT_DEFINITIONS: AnySpecificComponentDefinition[] = [
       ],
     } as Omit<FlexCarousel, 'id' | 'type'>),
   } as ComponentDefinition<FlexCarousel>,
+  
+  // Components
   {
     name: 'Box',
     type: 'box',
     icon: React.createElement(BoxIcon),
     isContainer: true,
-    acceptedChildTypes: ['box', 'text', 'image', 'button', 'separator', 'spacer', 'icon'],
+    acceptedChildTypes: ['box', 'text', 'image', 'button', 'separator', 'icon', 'video'], // Added 'video'
     defaultPropertiesFactory: () => ({
       layout: 'vertical',
       contents: [],
@@ -89,12 +93,23 @@ export const COMPONENT_DEFINITIONS: AnySpecificComponentDefinition[] = [
     type: 'image',
     icon: React.createElement(ImageIcon),
     defaultPropertiesFactory: () => ({
-      url: 'https://picsum.photos/800/600',
+      url: 'https://picsum.photos/800/600?random=1', // Add random query to vary image
       size: 'full' as FlexImageSize,
       aspectRatio: '16:9',
       aspectMode: 'cover',
     } as Omit<FlexImage, 'id' | 'type'>),
   } as ComponentDefinition<FlexImage>,
+  {
+    name: 'Video',
+    type: 'video',
+    icon: React.createElement(VideoIcon),
+    defaultPropertiesFactory: () => ({
+      url: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4', // Example video URL
+      previewUrl: 'https://picsum.photos/seed/video_preview/800/600?random=2', // Add random query
+      aspectRatio: '16:9',
+      action: { type: 'uri', label: 'Play Video', uri: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4' }
+    } as Omit<FlexVideo, 'id' | 'type'>),
+  } as ComponentDefinition<FlexVideo>,
   {
     name: 'Button',
     type: 'button',
@@ -116,74 +131,17 @@ export const COMPONENT_DEFINITIONS: AnySpecificComponentDefinition[] = [
     } as Omit<FlexSeparator, 'id' | 'type'>),
   } as ComponentDefinition<FlexSeparator>,
   {
-    name: 'Spacer',
-    type: 'spacer',
-    icon: React.createElement(SpacerIcon),
-    defaultPropertiesFactory: () => ({
-      size: 'md',
-    } as Omit<FlexSpacer, 'id' | 'type'>),
-  } as ComponentDefinition<FlexSpacer>,
-  {
     name: 'Icon',
     type: 'icon',
     icon: React.createElement(UIIcon),
     defaultPropertiesFactory: () => ({
-      url: 'https://picsum.photos/64/64', 
+      url: 'https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png', 
       size: 'md' as FlexImageSize,
       aspectRatio: '1:1',
     } as Omit<FlexIcon, 'id' | 'type'>),
   } as ComponentDefinition<FlexIcon>,
-  // Pre-built sections
-  {
-    name: 'Header Block',
-    type: 'box', 
-    icon: React.createElement(HeaderIcon),
-    isBlockElement: true,
-    defaultPropertiesFactory: () => ({
-      layout: 'vertical',
-      contents: [{ type: 'text', id: '', text: 'Header Title', weight: 'bold', size: 'xl' } as FlexText],
-      paddingAll: 'md',
-      backgroundColor: '#F0F0F0',
-    } as Omit<FlexBox, 'id' | 'type'>),
-  } as ComponentDefinition<FlexBox>, // This is a specific configuration of a FlexBox
-  {
-    name: 'Hero Block',
-    type: 'image', 
-    icon: React.createElement(HeroIcon),
-    isBlockElement: true,
-    defaultPropertiesFactory: () => ({
-      url: 'https://picsum.photos/1200/800',
-      size: 'full' as FlexImageSize,
-      aspectRatio: '20:13',
-      aspectMode: 'cover',
-    } as Omit<FlexImage, 'id' | 'type'>),
-  } as ComponentDefinition<FlexImage>, // This is a specific configuration of a FlexImage
-  {
-    name: 'Body Block',
-    type: 'box',
-    icon: React.createElement(BodyIcon),
-    isBlockElement: true,
-    defaultPropertiesFactory: () => ({
-      layout: 'vertical',
-      contents: [
-        { type: 'text', id: '', text: 'Main content goes here.', wrap: true } as FlexText,
-      ],
-      paddingAll: 'md',
-    } as Omit<FlexBox, 'id' | 'type'>),
-  } as ComponentDefinition<FlexBox>,
-  {
-    name: 'Footer Block',
-    type: 'box',
-    icon: React.createElement(FooterIcon),
-    isBlockElement: true,
-    defaultPropertiesFactory: () => ({
-      layout: 'horizontal',
-      contents: [{ type: 'button', id: '', action: defaultAction(), style: 'primary' } as FlexButton],
-      spacing: 'md',
-      paddingAll: 'md',
-      backgroundColor: '#F0F0F0',
-    } as Omit<FlexBox, 'id' | 'type'>),
-  } as ComponentDefinition<FlexBox>,
+  // Spacer component definition removed
+  // Pre-built sections (Header Block, Hero Block, Body Block, Footer Block) removed
 ];
 
 export const TEMPLATES: Array<{ name: string; description: string; structure: () => Omit<FlexBubble, 'id' | 'type'> }> = [
@@ -197,11 +155,11 @@ export const TEMPLATES: Array<{ name: string; description: string; structure: ()
                 contents: [
                     { type: 'text', text: 'Product Name', weight: 'bold', size: 'xl' },
                     { type: 'box', layout: 'baseline', margin: 'md', spacing: 'sm', contents: [
-                        { type: 'icon', url: 'https://picsum.photos/seed/star/32/32', size: 'sm'}, 
-                        { type: 'icon', url: 'https://picsum.photos/seed/star/32/32', size: 'sm'}, 
-                        { type: 'icon', url: 'https://picsum.photos/seed/star/32/32', size: 'sm'}, 
-                        { type: 'icon', url: 'https://picsum.photos/seed/star/32/32', size: 'sm'}, 
-                        { type: 'icon', url: 'https://picsum.photos/seed/greystar/32/32', size: 'sm'},
+                        { type: 'icon', url: 'https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png', size: 'sm'}, 
+                        { type: 'icon', url: 'https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png', size: 'sm'}, 
+                        { type: 'icon', url: 'https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png', size: 'sm'}, 
+                        { type: 'icon', url: 'https://developers-resource.landpress.line.me/fx/img/review_gold_star_28.png', size: 'sm'}, 
+                        { type: 'icon', url: 'https://developers-resource.landpress.line.me/fx/img/review_gray_star_28.png', size: 'sm'}, // Example for gray star
                         { type: 'text', text: '4.0', size: 'sm', color: '#999999', margin: 'md', flex: 0 }
                     ] as any}, // Cast inner contents array to any
                     { type: 'box', layout: 'vertical', margin: 'lg', spacing: 'sm', contents: [
@@ -277,6 +235,8 @@ export const INITIAL_EMPTY_CAROUSEL: () => FlexCarousel = () => ({
 export const PROPERTY_LABEL_MAP: Record<string, string> = {
   text: "Text Content",
   url: "URL",
+  previewUrl: "Preview URL", // For Video
+  altContent: "Alternative Content (Box)", // For Video
   uri: "URI / Link",
   data: "Postback Data",
   size: "Size",
